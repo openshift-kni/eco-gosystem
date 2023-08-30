@@ -6,12 +6,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-systemtests/tests/internal/polarion"
-	"github.com/openshift-kni/eco-systemtests/tests/internal/await"
-	"github.com/openshift-kni/eco-systemtests/tests/internal/shell"
-	. "github.com/openshift-kni/eco-systemtests/tests/ran-du/internal/randuinittools"
-	"github.com/openshift-kni/eco-systemtests/tests/ran-du/internal/randuparams"
-	"github.com/openshift-kni/eco-systemtests/tests/ran-du/internal/randutestworkload"
+	"github.com/openshift-kni/eco-goinfra/pkg/polarion"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/await"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/shell"
+	. "github.com/openshift-kni/eco-gosystem/tests/ran-du/internal/randuinittools"
+	"github.com/openshift-kni/eco-gosystem/tests/ran-du/internal/randuparams"
+	"github.com/openshift-kni/eco-gosystem/tests/ran-du/internal/randutestworkload"
 )
 
 var _ = Describe(

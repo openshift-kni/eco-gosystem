@@ -5,14 +5,17 @@ import (
 	"log"
 	"os"
 
+	"github.com/golang/glog"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/golang/glog"
+	argocdOperatorv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocdScheme "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdClient "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
-
 	performanceV2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 
 	clientConfigV1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
+	v1security "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
 	mcv1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	ptpV1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
 	olm2 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/client/clientset/versioned/scheme"
@@ -70,9 +73,11 @@ type Settings struct {
 	Config *rest.Config
 	runtimeClient.Client
 	ptpV1.PtpV1Interface
+	v1security.SecurityV1Interface
 	olm.OperatorsV1alpha1Interface
 	clientNetAttDefV1.K8sCniCncfIoV1Interface
 	dynamic.Interface
+	argocdClient.ArgoprojV1alpha1Interface
 	olmv1.OperatorsV1Interface
 	PackageManifestInterface clientPkgManifestV1.OperatorsV1Interface
 }
@@ -114,6 +119,8 @@ func New(kubeconfig string) *Settings {
 	clientSet.Interface = dynamic.NewForConfigOrDie(config)
 	clientSet.OperatorsV1Interface = olmv1.NewForConfigOrDie(config)
 	clientSet.PackageManifestInterface = clientPkgManifestV1.NewForConfigOrDie(config)
+	clientSet.SecurityV1Interface = v1security.NewForConfigOrDie(config)
+	clientSet.ArgoprojV1alpha1Interface = argocdClient.NewForConfigOrDie(config)
 
 	clientSet.Config = config
 
@@ -222,6 +229,14 @@ func SetScheme(crScheme *runtime.Scheme) error {
 	}
 
 	if err := nmstateV1alpha1.AddToScheme(crScheme); err != nil {
+		return err
+	}
+
+	if err := argocdOperatorv1alpha1.AddToScheme(crScheme); err != nil {
+		return err
+	}
+
+	if err := argocdScheme.AddToScheme(crScheme); err != nil {
 		return err
 	}
 

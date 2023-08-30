@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-systemtests/tests/internal/config"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/config"
 	"gopkg.in/yaml.v2"
 )
 
