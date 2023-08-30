@@ -5,7 +5,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-systemtests/tests/internal/config"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/config"
 )
 
 var (

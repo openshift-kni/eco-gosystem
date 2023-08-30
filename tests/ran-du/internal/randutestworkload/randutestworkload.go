@@ -9,7 +9,7 @@ import (
     "github.com/openshift-kni/eco-goinfra/pkg/namespace"
     "github.com/openshift-kni/eco-goinfra/pkg/sriov"
     "github.com/openshift-kni/eco-goinfra/pkg/statefulset"
-    . "github.com/openshift-kni/eco-systemtests/tests/internal/inittools"
+    . "github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

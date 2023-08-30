@@ -2,8 +2,8 @@ package randuinittools
 
 import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-systemtests/tests/internal/inittools"
-	"github.com/openshift-kni/eco-systemtests/tests/ran-du/internal/randuconfig"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
+	"github.com/openshift-kni/eco-gosystem/tests/ran-du/internal/randuconfig"
 )
 
 var (
