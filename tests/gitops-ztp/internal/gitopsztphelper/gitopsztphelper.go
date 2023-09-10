@@ -7,25 +7,145 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"regexp"
+	"os"
 	"strconv"
 	"strings"
 
+	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	gitopsztpparams "github.com/openshift-kni/eco-gosystem/tests/gitops-ztp/internal/params"
+	"github.com/openshift-kni/eco-gosystem/tests/gitops-ztp/internal/gitopsztpparams"
 )
 
 var (
-	HubAPIClient      *clients.Settings
-	HubName           string
-	SpokeAPIClient    *clients.Settings
-	SpokeName         string
-	ArgocdApps        = map[string]gitopsztpparams.ArgocdGitDetails{}
-	ZtpVersion        string
-	AcmVersion        string
-	TalmVersion       string
-	pidAndAffinityExp = regexp.MustCompile(`pid (\d+)'s current affinity list: (.*)$`)
+	HubAPIClient   *clients.Settings
+	HubName        string
+	SpokeAPIClient *clients.Settings
+	SpokeName      string
+	ArgocdApps     = map[string]gitopsztpparams.ArgocdGitDetails{}
+	ZtpVersion     string
+	AcmVersion     string
+	TalmVersion    string
 )
+
+func GetOperatorVersionFromCSV(client *clients.Settings, operatorName, operatorNamespace string) (string, error) {
+	// Check if the client is valid
+	if client == nil {
+		return "", fmt.Errorf("provided nil client")
+	}
+
+	// Get the CSV objects
+	csvs, err := client.ClusterServiceVersions(operatorNamespace).
+		List(context.TODO(), metav1.ListOptions{})
+
+	// Check for any error getting the CSVs
+	if err != nil {
+		return "", err
+	}
+
+	// Find the CSV that matches the operator
+	for _, csv := range csvs.Items {
+		if strings.Contains(csv.Name, operatorName) {
+			return csv.Spec.Version.String(), nil
+		}
+	}
+
+	return "", nil
+}
+
+// DefineAPIClient creates new api client instance connected to given cluster.
+func DefineAPIClient(kubeconfigEnvVar string) (*clients.Settings, error) {
+	kubeFilePath, present := os.LookupEnv(kubeconfigEnvVar)
+	if !present {
+		return nil, fmt.Errorf("can not load api client. Please check %s env var", kubeconfigEnvVar)
+	}
+
+	clients := clients.New(kubeFilePath)
+	if clients == nil {
+		return nil, fmt.Errorf("client is not set please check %s env variable", kubeconfigEnvVar)
+	}
+
+	return clients, nil
+}
+
+func InitializeClients() error {
+
+	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
+		// Define all the hub information
+		HubAPIClient, err := DefineAPIClient(gitopsztpparams.HubKubeEnvKey)
+		if err != nil {
+			return err
+		}
+
+		HubName, err = cluster.GetClusterName(gitopsztpparams.HubKubeEnvKey)
+		if err != nil {
+			return err
+		}
+
+		ocpVersion, err := cluster.GetClusterVersion(HubAPIClient)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("cluster '%s' has OCP version '%s'\n", HubName, ocpVersion)
+
+		AcmVersion, err = GetOperatorVersionFromCSV(
+			HubAPIClient,
+			gitopsztpparams.AcmOperatorName,
+			gitopsztpparams.AcmOperatorNamespace,
+		)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("cluster '%s' has ACM version '%s'\n", HubName, AcmVersion)
+
+		ZtpVersion, err = GetZtpVersionFromArgocd(
+			gitopsztpparams.OpenshiftGitops,
+			gitopsztpparams.OpenshiftGitops,
+		)
+
+		if err != nil {
+			return err
+		}
+
+		log.Printf("cluster '%s' has ZTP version '%s'\n", HubName, ZtpVersion)
+
+		TalmVersion, err = GetOperatorVersionFromCSV(
+			HubAPIClient,
+			gitopsztpparams.OperatorHubTalmNamespace,
+			gitopsztpparams.OpenshiftOperatorNamespace,
+		)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("cluster '%s' has TALM version '%s'\n", HubName, TalmVersion)
+	}
+
+	// Spoke is the default kubeconfig
+	if os.Getenv(gitopsztpparams.SpokeKubeEnvKey) != "" {
+		SpokeAPIClient, err := DefineAPIClient(gitopsztpparams.SpokeKubeEnvKey)
+		if err != nil {
+			return err
+		}
+
+		SpokeName, err = cluster.GetClusterName(gitopsztpparams.SpokeKubeEnvKey)
+		if err != nil {
+			return err
+		}
+
+		ocpVersion, err := cluster.GetClusterVersion(SpokeAPIClient)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("cluster '%s' has OCP version '%s'\n", SpokeName, ocpVersion)
+	}
+
+	return nil
+}
 
 // GetZtpContext is used to get the context for the Ztp test client interactions.
 func GetZtpContext() context.Context {
@@ -184,4 +304,34 @@ func DoesGitPathExist(gitURL, gitBranch, gitPath string) bool {
 	log.Printf("could not find valid url for '%s'\n", gitPath)
 
 	return false
+}
+
+// GetZtpVersionFromArgocd is used to fetch the version of the ztp-site-generator init container.
+func GetZtpVersionFromArgocd(name string, namespace string) (string, error) {
+	deployment, err := HubAPIClient.Deployments(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.InitContainers {
+		// Legacy 4.11 uses the image name as `ztp-site-generator`
+		// While 4.12+ uses the image name as `ztp-site-generate`
+		// So just check for `ztp-site-gen` to cover both
+		if strings.Contains(container.Image, "ztp-site-gen") {
+			arr := strings.Split(container.Image, ":")
+			// Get the image tag which is the last element
+			ztpVersion := arr[len(arr)-1]
+
+			if ztpVersion == "latest" {
+				log.Println("Site generator version tag was 'latest', so returning empty version")
+
+				return "", nil
+			}
+
+			// The format here will be like vX.Y.Z so we need to remove the v at the start
+			return ztpVersion[1:], nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to identify ztp version")
 }
