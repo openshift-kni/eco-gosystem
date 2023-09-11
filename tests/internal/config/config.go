@@ -19,19 +19,19 @@ const (
 
 // GeneralConfig type keeps general configuration.
 type GeneralConfig struct {
-	ReportsDirAbsPath    string `yaml:"reports_dump_dir" envconfig:"ECO_REPORTS_DUMP_DIR"`
-	VerboseLevel         string `yaml:"verbose_level" envconfig:"ECO_VERBOSE_LEVEL"`
-	DumpFailedTests      bool   `yaml:"dump_failed_tests" envconfig:"ECO_DUMP_FAILED_TESTS"`
-	PolarionReport       bool   `yaml:"polarion_report" envconfig:"ECO_POLARION_REPORT"`
-	DryRun               bool   `yaml:"dry_run" envconfig:"ECO_DRY_RUN"`
-	KubernetesRolePrefix string `yaml:"kubernetes_role_prefix" envconfig:"ECO_KUBERNETES_ROLE_PREFIX"`
-	WorkerLabel          string `yaml:"worker_label" envconfig:"ECO_WORKER_LABEL"`
-	ControlPlaneLabel    string `yaml:"control_plane_label" envconfig:"ECO_CONTROL_PLANE_LABEL"`
-	PolarionTCPrefix     string `yaml:"polarion_tc_prefix" envconfig:"ECO_POLARION_TC_PREFIX"`
-	MCONamespace         string `yaml:"mco_namespace" envconfig:"ECO_MCO_NAMESPACE"`
-	MCOConfigDaemonName  string `yaml:"mco_config_daemon_name" envconfig:"ECO_MCO_CONFIG_DAEMON_NAME"`
-	WorkerLabelMap       map[string]string
-	ControlPlaneLabelMap map[string]string
+	ReportsDirAbsPath      string `yaml:"reports_dump_dir" envconfig:"ECO_REPORTS_DUMP_DIR"`
+	VerboseLevel           string `yaml:"verbose_level" envconfig:"ECO_VERBOSE_LEVEL"`
+	DumpFailedTests        bool   `yaml:"dump_failed_tests" envconfig:"ECO_DUMP_FAILED_TESTS"`
+	PolarionReport         bool   `yaml:"polarion_report" envconfig:"ECO_POLARION_REPORT"`
+	DryRun                 bool   `yaml:"dry_run" envconfig:"ECO_DRY_RUN"`
+	KubernetesRolePrefix   string `yaml:"kubernetes_role_prefix" envconfig:"ECO_KUBERNETES_ROLE_PREFIX"`
+	WorkerLabel            string `yaml:"worker_label" envconfig:"ECO_WORKER_LABEL"`
+	ControlPlaneLabel      string `yaml:"control_plane_label" envconfig:"ECO_CONTROL_PLANE_LABEL"`
+	PolarionTCPrefix       string `yaml:"polarion_tc_prefix" envconfig:"ECO_POLARION_TC_PREFIX"`
+	MCONamespace           string `yaml:"mco_namespace" envconfig:"ECO_MCO_NAMESPACE"`
+	MCOConfigDaemonName    string `yaml:"mco_config_daemon_name" envconfig:"ECO_MCO_CONFIG_DAEMON_NAME"`
+	WorkerLabelMap         map[string]string
+	ControlPlaneLabelMap   map[string]string
 	SriovOperatorNamespace string `yaml:"sriov_operator_namespace" envconfig:"ECO_SYSTEM_TESTS_SRIOV_OPERATOR_NAMESPACE"`
 }
 
@@ -80,7 +80,7 @@ func (cfg *GeneralConfig) GetJunitReportPath(file string) string {
 
 // GetPolarionReportPath returns full path to the polarion report file.
 func (cfg *GeneralConfig) GetPolarionReportPath() string {
-       reportFileName := strings.TrimSuffix(filepath.Base("report"), filepath.Ext(filepath.Base("report")))
+	reportFileName := strings.TrimSuffix(filepath.Base("report"), filepath.Ext(filepath.Base("report")))
 
 	if !cfg.PolarionReport {
 		return ""
