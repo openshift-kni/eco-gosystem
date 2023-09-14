@@ -41,11 +41,12 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
-	github.com/openshift-kni/eco-goinfra v0.0.0-20230907184933-7a5472a9cefe
+	github.com/openshift-kni/eco-goinfra v0.0.0-20230913151130-e958763a412a
 	github.com/openshift-kni/k8sreporter v1.0.4
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
+	k8s.io/client-go v12.0.0+incompatible
 )
 
 require (
@@ -234,7 +235,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.27.1 // indirect
 	k8s.io/apiserver v0.26.2 // indirect
 	k8s.io/cli-runtime v0.26.1 // indirect
-	k8s.io/client-go v12.0.0+incompatible // indirect
 	k8s.io/component-base v0.27.1 // indirect
 	k8s.io/component-helpers v0.26.2 // indirect
 	k8s.io/klog v1.0.0 // indirect
