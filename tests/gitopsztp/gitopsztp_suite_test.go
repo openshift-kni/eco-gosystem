@@ -45,7 +45,7 @@ var _ = BeforeSuite(func() {
 	_, err = ns.Create()
 	Expect(err).ToNot(HaveOccurred())
 
-	// // create a helper pod to run commands on nodes
+	// create a helper pod to run commands on nodes
 	// log.Println("Setup initiated: creating a privileged pod")
 	// helper.CreatePrivilegedPods("")
 })

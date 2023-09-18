@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -9,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/openshift-kni/eco-goinfra/pkg/clusterversion"
 
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -69,19 +68,18 @@ func GetClusterName(kubeconfigEnvVar string) (string, error) {
 }
 
 // GetClusterVersion can be used to get the Openshift version from the provided cluster.
-func GetClusterVersion(clusterClient *clients.Settings) (string, error) {
+func GetClusterVersion(apiClient *clients.Settings) (string, error) {
 	// Check if the client was even defined first
-	if clusterClient == nil {
+	if apiClient == nil {
 		return "", fmt.Errorf("provided client was not defined")
 	}
 
-	result, err := clusterClient.ConfigV1Interface.ClusterVersions().
-		Get(context.Background(), "version", metav1.GetOptions{})
+	cv, err := clusterversion.Pull(apiClient)
 	if err != nil {
 		return "", err
 	}
 
-	histories := result.Status.History
+	histories := cv.Object.Status.History
 	for i := len(histories) - 1; i >= 0; i-- {
 		history := histories[i]
 		if history.State == "Completed" {
@@ -91,5 +89,5 @@ func GetClusterVersion(clusterClient *clients.Settings) (string, error) {
 
 	log.Println("Warning: No completed version found in clusterversion. Returning desired version")
 
-	return result.Status.Desired.Version, nil
+	return cv.Object.Status.Desired.Version, nil
 }
