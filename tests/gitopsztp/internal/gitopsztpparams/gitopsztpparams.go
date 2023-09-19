@@ -33,6 +33,7 @@ const (
 	TunedPatchName            string        = "performance-patch"
 	TunedNamespace            string        = "openshift-cluster-node-tuning-operator"
 	MCPname                   string        = "master"
+	PrivPodNamespace          string        = "cnfgotestpriv"
 )
 
 // ArgocdApps is a list of the argocd app names that are defined above.
