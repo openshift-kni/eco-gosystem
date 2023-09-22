@@ -43,6 +43,7 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/openshift-kni/eco-goinfra v0.0.0-20230914145933-299b0bbaa833
 	github.com/openshift-kni/k8sreporter v1.0.4
+	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
@@ -169,7 +170,6 @@ require (
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20230620093014-45a940d6f70d // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible // indirect
 	github.com/openshift/assisted-service/api v0.0.0-20230906121258-6d85fb16f8dd // indirect
 	github.com/openshift/assisted-service/models v0.0.0 // indirect
 	github.com/openshift/client-go v0.0.0-20230120202327-72f107311084 // indirect
