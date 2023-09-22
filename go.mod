@@ -43,10 +43,12 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/openshift-kni/eco-goinfra v0.0.0-20230914145933-299b0bbaa833
 	github.com/openshift-kni/k8sreporter v1.0.4
+	github.com/openshift/cluster-logging-operator v0.0.0-20230921181116-cd901aaa8af2
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v12.0.0+incompatible
+	sigs.k8s.io/controller-runtime v0.14.6
 )
 
 require (
@@ -121,6 +123,7 @@ require (
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -176,6 +179,7 @@ require (
 	github.com/openshift/cluster-nfd-operator v0.0.0-20230116162820-3d08a74f3d2e // indirect
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20230704170229-287fdce04769 // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
+	github.com/openshift/elasticsearch-operator v0.0.0-20220613183908-e1648e67c298 // indirect
 	github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a // indirect
 	github.com/openshift/machine-config-operator v0.0.1-0.20230525143338-5c5a902aeb55 // indirect
 	github.com/openshift/ptp-operator v0.0.0-20230608145834-0f37b622bc3b // indirect
@@ -245,7 +249,6 @@ require (
 	k8s.io/kubelet v0.26.2 // indirect
 	k8s.io/kubernetes v1.25.4 // indirect
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
-	sigs.k8s.io/controller-runtime v0.14.6 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
