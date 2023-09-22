@@ -43,6 +43,7 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/openshift-kni/eco-goinfra v0.0.0-20230914145933-299b0bbaa833
 	github.com/openshift-kni/k8sreporter v1.0.4
+	github.com/operator-framework/api v0.17.3
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
@@ -179,7 +180,6 @@ require (
 	github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a // indirect
 	github.com/openshift/machine-config-operator v0.0.1-0.20230525143338-5c5a902aeb55 // indirect
 	github.com/openshift/ptp-operator v0.0.0-20230608145834-0f37b622bc3b // indirect
-	github.com/operator-framework/api v0.17.3 // indirect
 	github.com/operator-framework/operator-lifecycle-manager v0.24.0 // indirect
 	github.com/operator-framework/operator-registry v1.17.5 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
