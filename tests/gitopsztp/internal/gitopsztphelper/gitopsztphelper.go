@@ -512,13 +512,12 @@ func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
 
 	}
 	// Launch priv pods on nodes with worker role so it can be successfully scheduled.
-	workerNodesTemplate := nod.NewBuilder(HubAPIClient, map[string]string{"node-role.kubernetes.io": "worker"})
-	err := workerNodesTemplate.Discover()
+	workerNodesList, err := nod.List(HubAPIClient, metav1.ListOptions{
+		LabelSelector: "node-role.kubernetes.io/worker",
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	workerNodesList := workerNodesTemplate.Objects
 
 	privPods := make(map[string]*pod.Builder)
 
