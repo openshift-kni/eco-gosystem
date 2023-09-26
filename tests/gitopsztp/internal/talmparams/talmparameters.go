@@ -1,4 +1,4 @@
-package gitopsztpparams
+package talmparams
 
 import (
 	"time"

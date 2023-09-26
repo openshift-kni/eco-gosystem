@@ -24,6 +24,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/talmparams"
 )
 
 var (
@@ -161,8 +162,8 @@ func InitializeClients() error {
 
 		TalmVersion, err = GetOperatorVersionFromCSV(
 			HubAPIClient,
-			gitopsztpparams.OperatorHubTalmNamespace,
-			gitopsztpparams.OpenshiftOperatorNamespace,
+			talmparams.OperatorHubTalmNamespace,
+			talmparams.OpenshiftOperatorNamespace,
 		)
 		if err != nil {
 			return err
