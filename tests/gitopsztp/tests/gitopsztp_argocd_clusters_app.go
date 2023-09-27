@@ -70,7 +70,7 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 			})
 
 			By("Reconfigure clusters app to set the ztp directory to the ztp-tests/remove-nmstate dir", func() {
-				err := gitopsztphelper.SetGitDetailsInArcgocd(
+				err := gitopsztphelper.SetGitDetailsInArgocd(
 					gitopsztphelper.ArgocdApps[gitopsztpparams.ArgocdClustersAppName].Repo,
 					gitopsztphelper.ArgocdApps[gitopsztpparams.ArgocdClustersAppName].Branch,
 					testGitPath,

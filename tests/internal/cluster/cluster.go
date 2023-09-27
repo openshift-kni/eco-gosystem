@@ -74,12 +74,12 @@ func GetClusterVersion(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf("provided client was not defined")
 	}
 
-	cv, err := clusterversion.Pull(apiClient)
+	clusterVersion, err := clusterversion.Pull(apiClient)
 	if err != nil {
 		return "", err
 	}
 
-	histories := cv.Object.Status.History
+	histories := clusterVersion.Object.Status.History
 	for i := len(histories) - 1; i >= 0; i-- {
 		history := histories[i]
 		if history.State == "Completed" {
@@ -89,5 +89,5 @@ func GetClusterVersion(apiClient *clients.Settings) (string, error) {
 
 	log.Println("Warning: No completed version found in clusterversion. Returning desired version")
 
-	return cv.Object.Status.Desired.Version, nil
+	return clusterVersion.Object.Status.Desired.Version, nil
 }
