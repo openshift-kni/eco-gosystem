@@ -29,8 +29,10 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
 )
 
+// ztp related vars.
 var (
-	cnf_test_image = "quay.io/openshift-kni/cnf-tests:4.8"
+	// test image.
+	CnfTestImage   = "quay.io/openshift-kni/cnf-tests:4.8"
 	HubAPIClient   *clients.Settings
 	HubName        string
 	SpokeAPIClient *clients.Settings
@@ -51,7 +53,7 @@ var (
 )
 
 // SetGitDetailsInArgocd is used to update the git repo, branch, and path in the Argocd app.
-func SetGitDetailsInArcgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitForSync, syncMustBeValid bool) error {
+func SetGitDetailsInArgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitForSync, syncMustBeValid bool) error {
 	app, err := argocd.PullApplication(HubAPIClient, argocdApp, gitopsztpparams.OpenshiftGitops)
 	if err != nil {
 		return err
@@ -66,6 +68,7 @@ func SetGitDetailsInArcgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitF
 	}
 
 	app.WithGitDetails(gitRepo, gitBranch, gitPath)
+
 	_, err = app.Update(true)
 	if err != nil {
 		return err
@@ -81,6 +84,7 @@ func SetGitDetailsInArcgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitF
 	return nil
 }
 
+// GetOperatorVersionFromCSV returns operator version from csv.
 func GetOperatorVersionFromCSV(client *clients.Settings, operatorName, operatorNamespace string) (string, error) {
 	// Check if the client is valid
 	if client == nil {
@@ -120,6 +124,7 @@ func DefineAPIClient(kubeconfigEnvVar string) (*clients.Settings, error) {
 	return clients, nil
 }
 
+// InitializeClients initializes hub & spoke clients.
 func InitializeClients() error {
 	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
 		var err error
@@ -383,6 +388,7 @@ func GetZtpVersionFromArgocd(client *clients.Settings, name string, namespace st
 
 			// The format here will be like vX.Y.Z so we need to remove the v at the start
 			fmt.Println("ztpVersion = ", ztpVersion)
+
 			return ztpVersion[1:], nil
 		}
 	}
@@ -477,7 +483,7 @@ func ResetArgocdGitDetails() error {
 		// Loop over the apps and restore the git details
 		for _, app := range gitopsztpparams.ArgocdApps {
 			// Restore the app's git details
-			err := SetGitDetailsInArcgocd(
+			err := SetGitDetailsInArgocd(
 				ArgocdApps[app].Repo,
 				ArgocdApps[app].Branch,
 				ArgocdApps[app].Path,
@@ -499,17 +505,17 @@ func ResetArgocdGitDetails() error {
 // Returns a map with nodeName as key and pod pointer as value, and error if occurred.
 func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
 	if image == "" {
-		image = cnf_test_image
+		image = CnfTestImage
 	}
 	// Create cnfgotestpriv namespace if not already created
 	namespace := namespace.NewBuilder(HubAPIClient, gitopsztpparams.PrivPodNamespace)
 	if !namespace.Exists() {
 		log.Println("Creating namespace:", gitopsztpparams.PrivPodNamespace)
+
 		_, err := namespace.Create()
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	// Launch priv pods on nodes with worker role so it can be successfully scheduled.
 	workerNodesList, err := nodes.List(HubAPIClient, metav1.ListOptions{

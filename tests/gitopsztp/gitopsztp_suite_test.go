@@ -35,15 +35,15 @@ var _ = BeforeSuite(func() {
 	err := gitopsztphelper.InitializeClients()
 	Expect(err).ToNot(HaveOccurred())
 
-	ns := namespace.NewBuilder(gitopsztphelper.HubAPIClient, gitopsztpparams.ZtpTestNamespace)
+	namespace := namespace.NewBuilder(gitopsztphelper.HubAPIClient, gitopsztpparams.ZtpTestNamespace)
 
 	// Delete and re-create the namespace to start with a clean state
-	if ns.Exists() {
-		err = ns.DeleteAndWait(gitopsztpparams.DefaultTimeout)
+	if namespace.Exists() {
+		err = namespace.DeleteAndWait(gitopsztpparams.DefaultTimeout)
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	_, err = ns.Create()
+	_, err = namespace.Create()
 	Expect(err).ToNot(HaveOccurred())
 
 	// create a privileged pod to run commands on nodes
@@ -71,7 +71,8 @@ var _ = AfterSuite(func() {
 
 var _ = JustAfterEach(func() {
 	reporter.ReportIfFailed(
-		CurrentSpecReport(), GeneralConfig.GetDumpFailedTestReportLocation(currentFile), GeneralConfig.ReportsDirAbsPath, gitopsztphelper.ReporterNamespacesToDump,
+		CurrentSpecReport(), GeneralConfig.GetDumpFailedTestReportLocation(currentFile),
+		GeneralConfig.ReportsDirAbsPath, gitopsztphelper.ReporterNamespacesToDump,
 		gitopsztphelper.ReporterCRDsToDump, clients.SetScheme)
 })
 

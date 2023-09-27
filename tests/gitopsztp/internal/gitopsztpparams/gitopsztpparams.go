@@ -2,12 +2,14 @@ package gitopsztpparams
 
 import "time"
 
+// ArgocdGitDetails stores argocd git details.
 type ArgocdGitDetails struct {
 	Repo   string
 	Branch string
 	Path   string
 }
 
+// ZTP and Argocd vars.
 const (
 	// Namespaces matching '^ztp*' are special
 	// Argocd will only let us use such namespaces for policy gen templates on the SNO nodes.

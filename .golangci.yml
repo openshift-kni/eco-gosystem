@@ -5,6 +5,9 @@ run:
 #  modules-download-mode: readonly
 
 linters-settings:
+  gocognit:
+    # Minimal code complexity to report.
+    min-complexity: 35
   revive:
     rules:
       - name: indent-error-flow
