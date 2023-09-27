@@ -12,7 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
+	nod "github.com/openshift-kni/eco-goinfra/pkg/nodes"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
+	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 	"github.com/openshift-kni/k8sreporter"
 	v1 "k8s.io/api/core/v1"
@@ -27,6 +30,7 @@ import (
 )
 
 var (
+	cnf_test_image = "quay.io/openshift-kni/cnf-tests:4.8"
 	HubAPIClient   *clients.Settings
 	HubName        string
 	SpokeAPIClient *clients.Settings
@@ -489,4 +493,47 @@ func ResetArgocdGitDetails() error {
 	}
 
 	return nil
+}
+
+// CreatePrivilegedPods creates privileged test pods on worker nodes to assist testing
+// Returns a map with nodeName as key and pod pointer as value, and error if occurred.
+func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
+	if image == "" {
+		image = cnf_test_image
+	}
+	// Create cnfgotestpriv namespace if not already created
+	namespace := namespace.NewBuilder(HubAPIClient, gitopsztpparams.PrivPodNamespace)
+	if !namespace.Exists() {
+		log.Println("Creating namespace:", gitopsztpparams.PrivPodNamespace)
+		_, err := namespace.Create()
+		if err != nil {
+			return nil, err
+		}
+
+	}
+	// Launch priv pods on nodes with worker role so it can be successfully scheduled.
+	workerNodesList, err := nod.List(HubAPIClient, metav1.ListOptions{
+		LabelSelector: "node-role.kubernetes.io/worker",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	privPods := make(map[string]*pod.Builder)
+
+	for _, workerNode := range workerNodesList {
+		podName := fmt.Sprintf("%s-%s", gitopsztpparams.PrivPodNamespace, workerNode.Object.Name)
+		privilegedPod := pod.NewBuilder(HubAPIClient, podName, gitopsztpparams.PrivPodNamespace, image)
+
+		_, err := privilegedPod.WithPrivilegedFlag().DefineOnNode(workerNode.Object.Name).WithLocalVolume(
+			"rootfs", "/rootfs").WithHostPid(true).CreateAndWaitUntilRunning(
+			10 * time.Minute)
+		if err != nil {
+			return nil, err
+		}
+
+		privPods[workerNode.Object.Name] = privilegedPod
+	}
+
+	return privPods, nil
 }

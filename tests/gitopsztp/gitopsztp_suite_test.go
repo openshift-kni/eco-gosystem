@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
@@ -45,9 +46,12 @@ var _ = BeforeSuite(func() {
 	_, err = ns.Create()
 	Expect(err).ToNot(HaveOccurred())
 
-	// create a helper pod to run commands on nodes
-	// log.Println("Setup initiated: creating a privileged pod")
-	// helper.CreatePrivilegedPods("")
+	// create a privileged pod to run commands on nodes
+	glog.V(100).Infof("Setup initiated: creating a privileged pod")
+
+	_, err = gitopsztphelper.CreatePrivilegedPods("")
+	Expect(err).ToNot(HaveOccurred())
+
 })
 
 var _ = AfterSuite(func() {
@@ -55,17 +59,14 @@ var _ = AfterSuite(func() {
 	err := gitopsztphelper.ResetArgocdGitDetails()
 	Expect(err).ToNot(HaveOccurred())
 
-	// Delete the namespace
+	// Delete the ztp namespace
 	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, gitopsztpparams.ZtpTestNamespace).Delete()
 	Expect(err).ToNot(HaveOccurred())
 
-	// delete privileged pod
-	// log.Println("Teardown initiated: deleting privileged pod")
-	// err = namespaces.CleanPods(parameters.PrivPodNamespace, helper.Apiclient)
-	// Expect(err).ToNot(HaveOccurred())
-	// err = namespaces.DeleteAndWait(helper.Apiclient, parameters.PrivPodNamespace, 10*time.Minute)
-	// Expect(err).ToNot(HaveOccurred())
-
+	// delete the privileged pod
+	glog.V(100).Infof("Teardown initiated: deleting privileged pod")
+	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, gitopsztpparams.PrivPodNamespace).Delete()
+	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = JustAfterEach(func() {
