@@ -1,7 +1,7 @@
 package randuparams
 
 import (
-	"github.com/openshift-kni/eco-gosystem/tests/internal/params"
+	systemtestsparams "github.com/openshift-kni/eco-gosystem/tests/internal/params"
 	"github.com/openshift-kni/k8sreporter"
 	v1 "k8s.io/api/core/v1"
 )
