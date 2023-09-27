@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	nod "github.com/openshift-kni/eco-goinfra/pkg/nodes"
+	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
@@ -512,7 +512,7 @@ func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
 
 	}
 	// Launch priv pods on nodes with worker role so it can be successfully scheduled.
-	workerNodesList, err := nod.List(HubAPIClient, metav1.ListOptions{
+	workerNodesList, err := nodes.List(HubAPIClient, metav1.ListOptions{
 		LabelSelector: "node-role.kubernetes.io/worker",
 	})
 	if err != nil {
