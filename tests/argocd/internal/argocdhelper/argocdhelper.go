@@ -1,4 +1,4 @@
-package gitopsztphelper
+package argocdhelper
 
 import (
 	"context"
@@ -16,7 +16,6 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 	"github.com/openshift-kni/k8sreporter"
 	v1 "k8s.io/api/core/v1"
 
@@ -26,8 +25,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/argocd"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
-	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/talmparams"
+	"github.com/openshift-kni/eco-gosystem/tests/argocd/internal/argocdparams"
 )
 
 // ztp related vars.
@@ -38,13 +36,13 @@ var (
 	HubName        string
 	SpokeAPIClient *clients.Settings
 	SpokeName      string
-	ArgocdApps     = map[string]gitopsztpparams.ArgocdGitDetails{}
+	ArgocdApps     = map[string]argocdparams.ArgocdGitDetails{}
 	ZtpVersion     string
 	AcmVersion     string
 	TalmVersion    string
 	// ReporterNamespacesToDump tells to the reporter from where to collect logs.
 	ReporterNamespacesToDump = map[string]string{
-		gitopsztpparams.ZtpTestNamespace: "",
+		argocdparams.ZtpTestNamespace: "",
 	}
 
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
@@ -55,7 +53,7 @@ var (
 
 // SetGitDetailsInArgocd is used to update the git repo, branch, and path in the Argocd app.
 func SetGitDetailsInArgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitForSync, syncMustBeValid bool) error {
-	app, err := argocd.PullApplication(HubAPIClient, argocdApp, gitopsztpparams.OpenshiftGitops)
+	app, err := argocd.PullApplication(HubAPIClient, argocdApp, argocdparams.OpenshiftGitops)
 	if err != nil {
 		return err
 	}
@@ -76,7 +74,7 @@ func SetGitDetailsInArgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitFo
 	}
 
 	if waitForSync {
-		err = WaitUntilArgocdChangeIsCompleted(argocdApp, syncMustBeValid, gitopsztpparams.ArgocdChangeTimeout)
+		err = WaitUntilArgocdChangeIsCompleted(argocdApp, syncMustBeValid, argocdparams.ArgocdChangeTimeout)
 		if err != nil {
 			return err
 		}
@@ -123,87 +121,6 @@ func DefineAPIClient(kubeconfigEnvVar string) (*clients.Settings, error) {
 	}
 
 	return clients, nil
-}
-
-// InitializeClients initializes hub & spoke clients.
-func InitializeClients() error {
-	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
-		var err error
-		// Define all the hub information
-		HubAPIClient, err = DefineAPIClient(gitopsztpparams.HubKubeEnvKey)
-		if err != nil {
-			return err
-		}
-
-		HubName, err = cluster.GetClusterName(gitopsztpparams.HubKubeEnvKey)
-		if err != nil {
-			return err
-		}
-
-		ocpVersion, err := cluster.GetClusterVersion(HubAPIClient)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("cluster '%s' has OCP version '%s'\n", HubName, ocpVersion)
-
-		AcmVersion, err = GetOperatorVersionFromCSV(
-			HubAPIClient,
-			gitopsztpparams.AcmOperatorName,
-			gitopsztpparams.AcmOperatorNamespace,
-		)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("cluster '%s' has ACM version '%s'\n", HubName, AcmVersion)
-
-		ZtpVersion, err = GetZtpVersionFromArgocd(
-			HubAPIClient,
-			gitopsztpparams.OpenshiftGitopsRepoServer,
-			gitopsztpparams.OpenshiftGitops,
-		)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("cluster '%s' has ZTP version '%s'\n", HubName, ZtpVersion)
-
-		TalmVersion, err = GetOperatorVersionFromCSV(
-			HubAPIClient,
-			talmparams.OperatorHubTalmNamespace,
-			talmparams.OpenshiftOperatorNamespace,
-		)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("cluster '%s' has TALM version '%s'\n", HubName, TalmVersion)
-	}
-
-	// Spoke is the default kubeconfig
-	if os.Getenv(gitopsztpparams.SpokeKubeEnvKey) != "" {
-		var err error
-		// Define all the spoke information
-		SpokeAPIClient, err = DefineAPIClient(gitopsztpparams.SpokeKubeEnvKey)
-		if err != nil {
-			return err
-		}
-
-		SpokeName, err = cluster.GetClusterName(gitopsztpparams.SpokeKubeEnvKey)
-		if err != nil {
-			return err
-		}
-
-		ocpVersion, err := cluster.GetClusterVersion(SpokeAPIClient)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("cluster '%s' has OCP version '%s'\n", SpokeName, ocpVersion)
-	}
-
-	return nil
 }
 
 // GetZtpContext is used to get the context for the Ztp test client interactions.
@@ -401,10 +318,10 @@ func GetZtpVersionFromArgocd(client *clients.Settings, name string, namespace st
 func WaitUntilArgocdChangeIsCompleted(appName string, syncMustBeValid bool, timeout time.Duration) error {
 	log.Println("Waiting for Argocd change to finish syncing")
 
-	err := wait.PollImmediate(gitopsztpparams.ArgocdChangeInterval, timeout, func() (bool, error) {
+	err := wait.PollImmediate(argocdparams.ArgocdChangeInterval, timeout, func() (bool, error) {
 		log.Println("Checking if argo change is complete...")
 
-		app, err := argocd.PullApplication(HubAPIClient, appName, gitopsztpparams.OpenshiftGitops)
+		app, err := argocd.PullApplication(HubAPIClient, appName, argocdparams.OpenshiftGitops)
 		if err != nil {
 			return false, err
 		}
@@ -458,16 +375,16 @@ func GetGitDetailsFromArgocd(appName, namespace string) (string, string, string,
 // If any are undefined then the default values are used instead.
 func GetArgocdAppGitDetails() error {
 	// Check if the hub is defined
-	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
+	if os.Getenv(argocdparams.HubKubeEnvKey) != "" {
 		// Loop over the apps and save the git details
-		for _, app := range gitopsztpparams.ArgocdApps {
-			repo, branch, dir, err := GetGitDetailsFromArgocd(app, gitopsztpparams.OpenshiftGitops)
+		for _, app := range argocdparams.ArgocdApps {
+			repo, branch, dir, err := GetGitDetailsFromArgocd(app, argocdparams.OpenshiftGitops)
 			if err != nil {
 				return err
 			}
 
 			// Save the git details to the map
-			ArgocdApps[app] = gitopsztpparams.ArgocdGitDetails{
+			ArgocdApps[app] = argocdparams.ArgocdGitDetails{
 				Repo:   repo,
 				Branch: branch,
 				Path:   dir,
@@ -480,9 +397,9 @@ func GetArgocdAppGitDetails() error {
 
 // ResetArgocdGitDetails is used to configure Argocd back to the values it had before the tests started.
 func ResetArgocdGitDetails() error {
-	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
+	if os.Getenv(argocdparams.HubKubeEnvKey) != "" {
 		// Loop over the apps and restore the git details
-		for _, app := range gitopsztpparams.ArgocdApps {
+		for _, app := range argocdparams.ArgocdApps {
 			// Restore the app's git details
 			err := SetGitDetailsInArgocd(
 				ArgocdApps[app].Repo,
@@ -509,9 +426,9 @@ func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
 		image = CnfTestImage
 	}
 	// Create cnfgotestpriv namespace if not already created
-	namespace := namespace.NewBuilder(HubAPIClient, gitopsztpparams.PrivPodNamespace)
+	namespace := namespace.NewBuilder(HubAPIClient, argocdparams.PrivPodNamespace)
 	if !namespace.Exists() {
-		log.Println("Creating namespace:", gitopsztpparams.PrivPodNamespace)
+		log.Println("Creating namespace:", argocdparams.PrivPodNamespace)
 
 		_, err := namespace.Create()
 		if err != nil {
@@ -529,8 +446,8 @@ func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
 	privPods := make(map[string]*pod.Builder)
 
 	for _, workerNode := range workerNodesList {
-		podName := fmt.Sprintf("%s-%s", gitopsztpparams.PrivPodNamespace, workerNode.Object.Name)
-		privilegedPod := pod.NewBuilder(HubAPIClient, podName, gitopsztpparams.PrivPodNamespace, image)
+		podName := fmt.Sprintf("%s-%s", argocdparams.PrivPodNamespace, workerNode.Object.Name)
+		privilegedPod := pod.NewBuilder(HubAPIClient, podName, argocdparams.PrivPodNamespace, image)
 
 		_, err := privilegedPod.WithPrivilegedFlag().DefineOnNode(workerNode.Object.Name).WithLocalVolume(
 			"rootfs", "/rootfs").WithHostPid(true).CreateAndWaitUntilRunning(
