@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// talm related vars.
 const (
 	TalmUpdatedConditionsVersion = "4.12"
 	OpenshiftOperatorNamespace   = "openshift-operators"

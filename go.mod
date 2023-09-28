@@ -41,7 +41,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
-	github.com/openshift-kni/eco-goinfra v0.0.0-20230927210402-778d70a283d6
+	github.com/openshift-kni/eco-goinfra v0.0.0-20230926141153-ce33aad75e9d
 	github.com/openshift-kni/k8sreporter v1.0.4
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.27.1
