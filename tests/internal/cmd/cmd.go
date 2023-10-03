@@ -1,4 +1,4 @@
-package reboot
+package cmd
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// SoftRebootNode executes systemctl reboot on a node.
-func SoftRebootNode(nodeName string) error {
+// ExecCmd executes a command on a node.
+func ExecCmd(cmdToExec []string, nodeName string) (string, error) {
 	listOptions := metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
 		LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": GeneralConfig.MCOConfigDaemonName}).String(),
@@ -20,17 +20,15 @@ func SoftRebootNode(nodeName string) error {
 
 	mcPodList, err := pod.List(APIClient, GeneralConfig.MCONamespace, listOptions)
 	if err != nil {
-		return err
+		return "", err
 	}
-
-	cmdToExec := []string{"chroot", "/rootfs", "systemctl", "reboot"}
 
 	glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPodList[0].Definition.Name)
 	buf, err := mcPodList[0].ExecCommand(cmdToExec)
 
 	if err != nil {
-		return fmt.Errorf("%w\n%s", err, buf.String())
+		return "", fmt.Errorf("%w\n%s", err, buf.String())
 	}
 
-	return nil
+	return buf.String(), err
 }
