@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
@@ -55,11 +54,6 @@ var _ = AfterSuite(func() {
 
 	// Delete the ztp namespace
 	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.ZtpTestNamespace).Delete()
-	Expect(err).ToNot(HaveOccurred())
-
-	// delete the privileged pod
-	glog.V(100).Infof("Teardown initiated: deleting privileged pod")
-	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.PrivPodNamespace).Delete()
 	Expect(err).ToNot(HaveOccurred())
 })
 
