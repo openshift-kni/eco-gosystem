@@ -1,4 +1,4 @@
-package ztphelper
+package gitopsztphelper
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/internal/ztpparams"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,15 +33,15 @@ var (
 
 // InitializeClients initializes hub & spoke clients.
 func InitializeClients() error {
-	if os.Getenv(ztpparams.HubKubeEnvKey) != "" {
+	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
 		var err error
 		// Define all the hub information
-		HubAPIClient, err = DefineAPIClient(ztpparams.HubKubeEnvKey)
+		HubAPIClient, err = DefineAPIClient(gitopsztpparams.HubKubeEnvKey)
 		if err != nil {
 			return err
 		}
 
-		HubName, err = cluster.GetClusterName(ztpparams.HubKubeEnvKey)
+		HubName, err = cluster.GetClusterName(gitopsztpparams.HubKubeEnvKey)
 		if err != nil {
 			return err
 		}
@@ -55,8 +55,8 @@ func InitializeClients() error {
 
 		AcmVersion, err = GetOperatorVersionFromCSV(
 			HubAPIClient,
-			ztpparams.AcmOperatorName,
-			ztpparams.AcmOperatorNamespace,
+			gitopsztpparams.AcmOperatorName,
+			gitopsztpparams.AcmOperatorNamespace,
 		)
 		if err != nil {
 			return err
@@ -66,8 +66,8 @@ func InitializeClients() error {
 
 		ZtpVersion, err = GetZtpVersionFromArgocd(
 			HubAPIClient,
-			ztpparams.OpenshiftGitopsRepoServer,
-			ztpparams.OpenshiftGitops,
+			gitopsztpparams.OpenshiftGitopsRepoServer,
+			gitopsztpparams.OpenshiftGitops,
 		)
 		if err != nil {
 			return err
@@ -77,8 +77,8 @@ func InitializeClients() error {
 
 		TalmVersion, err = GetOperatorVersionFromCSV(
 			HubAPIClient,
-			ztpparams.OperatorHubTalmNamespace,
-			ztpparams.OpenshiftOperatorNamespace,
+			gitopsztpparams.OperatorHubTalmNamespace,
+			gitopsztpparams.OpenshiftOperatorNamespace,
 		)
 		if err != nil {
 			return err
@@ -88,15 +88,15 @@ func InitializeClients() error {
 	}
 
 	// Spoke is the default kubeconfig
-	if os.Getenv(ztpparams.SpokeKubeEnvKey) != "" {
+	if os.Getenv(gitopsztpparams.SpokeKubeEnvKey) != "" {
 		var err error
 		// Define all the spoke information
-		SpokeAPIClient, err = DefineAPIClient(ztpparams.SpokeKubeEnvKey)
+		SpokeAPIClient, err = DefineAPIClient(gitopsztpparams.SpokeKubeEnvKey)
 		if err != nil {
 			return err
 		}
 
-		SpokeName, err = cluster.GetClusterName(ztpparams.SpokeKubeEnvKey)
+		SpokeName, err = cluster.GetClusterName(gitopsztpparams.SpokeKubeEnvKey)
 		if err != nil {
 			return err
 		}

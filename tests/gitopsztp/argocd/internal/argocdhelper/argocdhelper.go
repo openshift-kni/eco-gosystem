@@ -12,20 +12,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/k8sreporter"
 	v1 "k8s.io/api/core/v1"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/openshift-kni/eco-goinfra/pkg/argocd"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/argocd/internal/argocdparams"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/internal/ztphelper"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/internal/ztpparams"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdparams"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
 )
 
 // ztp related vars.
@@ -48,7 +44,7 @@ var (
 
 // SetGitDetailsInArgocd is used to update the git repo, branch, and path in the Argocd app.
 func SetGitDetailsInArgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitForSync, syncMustBeValid bool) error {
-	app, err := argocd.PullApplication(ztphelper.HubAPIClient, argocdApp, ztpparams.OpenshiftGitops)
+	app, err := argocd.PullApplication(gitopsztphelper.HubAPIClient, argocdApp, gitopsztpparams.OpenshiftGitops)
 	if err != nil {
 		return err
 	}
@@ -86,8 +82,8 @@ func GetZtpContext() context.Context {
 // GetAllTestClients is used to quickly obtain a list of all the test clients.
 func GetAllTestClients() []*clients.Settings {
 	return []*clients.Settings{
-		ztphelper.HubAPIClient,
-		ztphelper.SpokeAPIClient,
+		gitopsztphelper.HubAPIClient,
+		gitopsztphelper.SpokeAPIClient,
 	}
 }
 
@@ -244,7 +240,7 @@ func WaitUntilArgocdChangeIsCompleted(appName string, syncMustBeValid bool, time
 	err := wait.PollImmediate(argocdparams.ArgocdChangeInterval, timeout, func() (bool, error) {
 		log.Println("Checking if argo change is complete...")
 
-		app, err := argocd.PullApplication(ztphelper.HubAPIClient, appName, ztpparams.OpenshiftGitops)
+		app, err := argocd.PullApplication(gitopsztphelper.HubAPIClient, appName, gitopsztpparams.OpenshiftGitops)
 		if err != nil {
 			return false, err
 		}
@@ -286,7 +282,7 @@ func WaitUntilArgocdChangeIsCompleted(appName string, syncMustBeValid bool, time
 
 // GetGitDetailsFromArgocd is used to get the current git repo, branch, and path in the Argocd app.
 func GetGitDetailsFromArgocd(appName, namespace string) (string, string, string, error) {
-	app, err := argocd.PullApplication(ztphelper.HubAPIClient, appName, namespace)
+	app, err := argocd.PullApplication(gitopsztphelper.HubAPIClient, appName, namespace)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -298,10 +294,10 @@ func GetGitDetailsFromArgocd(appName, namespace string) (string, string, string,
 // If any are undefined then the default values are used instead.
 func GetArgocdAppGitDetails() error {
 	// Check if the hub is defined
-	if os.Getenv(ztpparams.HubKubeEnvKey) != "" {
+	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
 		// Loop over the apps and save the git details
 		for _, app := range argocdparams.ArgocdApps {
-			repo, branch, dir, err := GetGitDetailsFromArgocd(app, ztpparams.OpenshiftGitops)
+			repo, branch, dir, err := GetGitDetailsFromArgocd(app, gitopsztpparams.OpenshiftGitops)
 			if err != nil {
 				return err
 			}
@@ -320,7 +316,7 @@ func GetArgocdAppGitDetails() error {
 
 // ResetArgocdGitDetails is used to configure Argocd back to the values it had before the tests started.
 func ResetArgocdGitDetails() error {
-	if os.Getenv(ztpparams.HubKubeEnvKey) != "" {
+	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
 		// Loop over the apps and restore the git details
 		for _, app := range argocdparams.ArgocdApps {
 			// Restore the app's git details
@@ -340,47 +336,4 @@ func ResetArgocdGitDetails() error {
 	}
 
 	return nil
-}
-
-// CreatePrivilegedPods creates privileged test pods on worker nodes to assist testing
-// Returns a map with nodeName as key and pod pointer as value, and error if occurred.
-func CreatePrivilegedPods(image string) (map[string]*pod.Builder, error) {
-	if image == "" {
-		image = CnfTestImage
-	}
-	// Create cnfgotestpriv namespace if not already created
-	namespace := namespace.NewBuilder(ztphelper.HubAPIClient, argocdparams.PrivPodNamespace)
-	if !namespace.Exists() {
-		log.Println("Creating namespace:", argocdparams.PrivPodNamespace)
-
-		_, err := namespace.Create()
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Launch priv pods on nodes with worker role so it can be successfully scheduled.
-	workerNodesList, err := nodes.List(ztphelper.HubAPIClient, metav1.ListOptions{
-		LabelSelector: "node-role.kubernetes.io/worker",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	privPods := make(map[string]*pod.Builder)
-
-	for _, workerNode := range workerNodesList {
-		podName := fmt.Sprintf("%s-%s", argocdparams.PrivPodNamespace, workerNode.Object.Name)
-		privilegedPod := pod.NewBuilder(ztphelper.HubAPIClient, podName, argocdparams.PrivPodNamespace, image)
-
-		_, err := privilegedPod.WithPrivilegedFlag().DefineOnNode(workerNode.Object.Name).WithLocalVolume(
-			"rootfs", "/rootfs").WithHostPid(true).CreateAndWaitUntilRunning(
-			10 * time.Minute)
-		if err != nil {
-			return nil, err
-		}
-
-		privPods[workerNode.Object.Name] = privilegedPod
-	}
-
-	return privPods, nil
 }

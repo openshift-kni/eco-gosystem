@@ -10,10 +10,10 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
 	"github.com/openshift-kni/eco-goinfra/pkg/polarion"
 	"github.com/openshift-kni/eco-goinfra/pkg/reporter"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/argocd/internal/argocdhelper"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/argocd/internal/argocdparams"
-	_ "github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/argocd/tests"
-	"github.com/openshift-kni/eco-gosystem/tests/assisted/ztp/internal/ztphelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdhelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdparams"
+	_ "github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/tests"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
 	. "github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
 
 	. "github.com/onsi/gomega"
@@ -33,10 +33,10 @@ func TestArgocd(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	// API clients must be initialized first since they will be used later
-	err := ztphelper.InitializeClients()
+	err := gitopsztphelper.InitializeClients()
 	Expect(err).ToNot(HaveOccurred())
 
-	namespace := namespace.NewBuilder(ztphelper.HubAPIClient, argocdparams.ZtpTestNamespace)
+	namespace := namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.ZtpTestNamespace)
 
 	// Delete and re-create the namespace to start with a clean state
 	if namespace.Exists() {
@@ -46,13 +46,6 @@ var _ = BeforeSuite(func() {
 
 	_, err = namespace.Create()
 	Expect(err).ToNot(HaveOccurred())
-
-	// create a privileged pod to run commands on nodes
-	glog.V(100).Infof("Setup initiated: creating a privileged pod")
-
-	_, err = argocdhelper.CreatePrivilegedPods("")
-	Expect(err).ToNot(HaveOccurred())
-
 })
 
 var _ = AfterSuite(func() {
@@ -61,12 +54,12 @@ var _ = AfterSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	// Delete the ztp namespace
-	err = namespace.NewBuilder(ztphelper.HubAPIClient, argocdparams.ZtpTestNamespace).Delete()
+	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.ZtpTestNamespace).Delete()
 	Expect(err).ToNot(HaveOccurred())
 
 	// delete the privileged pod
 	glog.V(100).Infof("Teardown initiated: deleting privileged pod")
-	err = namespace.NewBuilder(ztphelper.HubAPIClient, argocdparams.PrivPodNamespace).Delete()
+	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.PrivPodNamespace).Delete()
 	Expect(err).ToNot(HaveOccurred())
 })
 

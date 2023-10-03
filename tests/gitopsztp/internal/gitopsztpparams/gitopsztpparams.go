@@ -1,4 +1,4 @@
-package ztpparams
+package gitopsztpparams
 
 const (
 	// HubKubeEnvKey is the hub's kubeconfig env var.
