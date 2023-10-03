@@ -6,6 +6,7 @@ import (
 
 // talm related vars.
 const (
+	HubKubeEnvKey                = "KUBECONFIG_HUB"
 	TalmUpdatedConditionsVersion = "4.12"
 	OpenshiftOperatorNamespace   = "openshift-operators"
 	OperatorHubTalmNamespace     = "topology-aware-lifecycle-manager"

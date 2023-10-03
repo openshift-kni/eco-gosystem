@@ -7,8 +7,9 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/eco-goinfra/pkg/assisted"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gosystem/tests/argocd/internal/argocdhelper"
-	"github.com/openshift-kni/eco-gosystem/tests/argocd/internal/argocdparams"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdhelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdparams"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 )
 
@@ -31,13 +32,13 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 		// Check for minimum ztp version
 		By("Checking the ZTP version", func() {
 			if !argocdhelper.IsVersionStringInRange(
-				argocdhelper.ZtpVersion,
+				gitopsztphelper.ZtpVersion,
 				"4.11",
 				"",
 			) {
 				Skip(fmt.Sprintf(
 					"unable to run test on ztp version '%s' as it is less than minimum '%s",
-					argocdhelper.ZtpVersion,
+					gitopsztphelper.ZtpVersion,
 					"4.11",
 				))
 			}
@@ -64,7 +65,7 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 			})
 
 			By("Check nmstateConfig cr exists", func() {
-				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(argocdhelper.HubAPIClient)
+				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(gitopsztphelper.HubAPIClient)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(nmStateConfigList).ToNot(BeEmpty(), "No NMstateConfig found before test begins")
 			})
@@ -82,7 +83,7 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 			})
 
 			By("Check nmstateConfig CR is gone under spoke cluster NS on hub", func() {
-				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(argocdhelper.HubAPIClient)
+				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(gitopsztphelper.HubAPIClient)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(nmStateConfigList).To(BeEmpty(), "NMstateconfig was found")
 			})
