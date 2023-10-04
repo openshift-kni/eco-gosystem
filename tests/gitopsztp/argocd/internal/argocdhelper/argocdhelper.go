@@ -20,7 +20,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/argocd"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdparams"
-	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
 )
 
@@ -44,7 +44,7 @@ var (
 
 // SetGitDetailsInArgocd is used to update the git repo, branch, and path in the Argocd app.
 func SetGitDetailsInArgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitForSync, syncMustBeValid bool) error {
-	app, err := argocd.PullApplication(gitopsztphelper.HubAPIClient, argocdApp, gitopsztpparams.OpenshiftGitops)
+	app, err := argocd.PullApplication(gitopsztpinittools.HubAPIClient, argocdApp, gitopsztpparams.OpenshiftGitops)
 	if err != nil {
 		return err
 	}
@@ -82,8 +82,8 @@ func GetZtpContext() context.Context {
 // GetAllTestClients is used to quickly obtain a list of all the test clients.
 func GetAllTestClients() []*clients.Settings {
 	return []*clients.Settings{
-		gitopsztphelper.HubAPIClient,
-		gitopsztphelper.SpokeAPIClient,
+		gitopsztpinittools.HubAPIClient,
+		gitopsztpinittools.SpokeAPIClient,
 	}
 }
 
@@ -240,7 +240,7 @@ func WaitUntilArgocdChangeIsCompleted(appName string, syncMustBeValid bool, time
 	err := wait.PollImmediate(argocdparams.ArgocdChangeInterval, timeout, func() (bool, error) {
 		log.Println("Checking if argo change is complete...")
 
-		app, err := argocd.PullApplication(gitopsztphelper.HubAPIClient, appName, gitopsztpparams.OpenshiftGitops)
+		app, err := argocd.PullApplication(gitopsztpinittools.HubAPIClient, appName, gitopsztpparams.OpenshiftGitops)
 		if err != nil {
 			return false, err
 		}
@@ -282,7 +282,7 @@ func WaitUntilArgocdChangeIsCompleted(appName string, syncMustBeValid bool, time
 
 // GetGitDetailsFromArgocd is used to get the current git repo, branch, and path in the Argocd app.
 func GetGitDetailsFromArgocd(appName, namespace string) (string, string, string, error) {
-	app, err := argocd.PullApplication(gitopsztphelper.HubAPIClient, appName, namespace)
+	app, err := argocd.PullApplication(gitopsztpinittools.HubAPIClient, appName, namespace)
 	if err != nil {
 		return "", "", "", err
 	}

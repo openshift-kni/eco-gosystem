@@ -9,18 +9,15 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	// HubAPIClient is the api client to the hub.
-	HubAPIClient *clients.Settings
 	// HubName hub cluster name.
 	HubName string
-	// SpokeAPIClient is the api client to the spoke.
-	SpokeAPIClient *clients.Settings
 	// SpokeName spoke cluster name.
 	SpokeName string
 	// ZtpVersion ztp version.
@@ -33,20 +30,15 @@ var (
 
 // InitializeClients initializes hub & spoke clients.
 func InitializeClients() error {
-	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
-		var err error
-		// Define all the hub information
-		HubAPIClient, err = DefineAPIClient(gitopsztpparams.HubKubeEnvKey)
-		if err != nil {
-			return err
-		}
+	var err error
 
+	if os.Getenv(gitopsztpparams.HubKubeEnvKey) != "" {
 		HubName, err = cluster.GetClusterName(gitopsztpparams.HubKubeEnvKey)
 		if err != nil {
 			return err
 		}
 
-		ocpVersion, err := cluster.GetClusterVersion(HubAPIClient)
+		ocpVersion, err := cluster.GetClusterVersion(gitopsztpinittools.HubAPIClient)
 		if err != nil {
 			return err
 		}
@@ -54,7 +46,7 @@ func InitializeClients() error {
 		log.Printf("cluster '%s' has OCP version '%s'\n", HubName, ocpVersion)
 
 		AcmVersion, err = GetOperatorVersionFromCSV(
-			HubAPIClient,
+			gitopsztpinittools.HubAPIClient,
 			gitopsztpparams.AcmOperatorName,
 			gitopsztpparams.AcmOperatorNamespace,
 		)
@@ -65,7 +57,7 @@ func InitializeClients() error {
 		log.Printf("cluster '%s' has ACM version '%s'\n", HubName, AcmVersion)
 
 		ZtpVersion, err = GetZtpVersionFromArgocd(
-			HubAPIClient,
+			gitopsztpinittools.HubAPIClient,
 			gitopsztpparams.OpenshiftGitopsRepoServer,
 			gitopsztpparams.OpenshiftGitops,
 		)
@@ -76,7 +68,7 @@ func InitializeClients() error {
 		log.Printf("cluster '%s' has ZTP version '%s'\n", HubName, ZtpVersion)
 
 		TalmVersion, err = GetOperatorVersionFromCSV(
-			HubAPIClient,
+			gitopsztpinittools.HubAPIClient,
 			gitopsztpparams.OperatorHubTalmNamespace,
 			gitopsztpparams.OpenshiftOperatorNamespace,
 		)
@@ -89,19 +81,12 @@ func InitializeClients() error {
 
 	// Spoke is the default kubeconfig
 	if os.Getenv(gitopsztpparams.SpokeKubeEnvKey) != "" {
-		var err error
-		// Define all the spoke information
-		SpokeAPIClient, err = DefineAPIClient(gitopsztpparams.SpokeKubeEnvKey)
-		if err != nil {
-			return err
-		}
-
 		SpokeName, err = cluster.GetClusterName(gitopsztpparams.SpokeKubeEnvKey)
 		if err != nil {
 			return err
 		}
 
-		ocpVersion, err := cluster.GetClusterVersion(SpokeAPIClient)
+		ocpVersion, err := cluster.GetClusterVersion(gitopsztpinittools.SpokeAPIClient)
 		if err != nil {
 			return err
 		}
@@ -110,21 +95,6 @@ func InitializeClients() error {
 	}
 
 	return nil
-}
-
-// DefineAPIClient creates new api client instance connected to given cluster.
-func DefineAPIClient(kubeconfigEnvVar string) (*clients.Settings, error) {
-	kubeFilePath, present := os.LookupEnv(kubeconfigEnvVar)
-	if !present {
-		return nil, fmt.Errorf("can not load api client. Please check %s env var", kubeconfigEnvVar)
-	}
-
-	clients := clients.New(kubeFilePath)
-	if clients == nil {
-		return nil, fmt.Errorf("client is not set please check %s env variable", kubeconfigEnvVar)
-	}
-
-	return clients, nil
 }
 
 // GetOperatorVersionFromCSV returns operator version from csv.

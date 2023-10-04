@@ -10,6 +10,7 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdhelper"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdparams"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 )
 
@@ -65,7 +66,7 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 			})
 
 			By("Check nmstateConfig cr exists", func() {
-				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(gitopsztphelper.HubAPIClient)
+				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(gitopsztpinittools.HubAPIClient)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(nmStateConfigList).ToNot(BeEmpty(), "No NMstateConfig found before test begins")
 			})
@@ -83,7 +84,7 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 			})
 
 			By("Check nmstateConfig CR is gone under spoke cluster NS on hub", func() {
-				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(gitopsztphelper.HubAPIClient)
+				nmStateConfigList, err := assisted.ListNmStateConfigsInAllNamespaces(gitopsztpinittools.HubAPIClient)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(nmStateConfigList).To(BeEmpty(), "NMstateconfig was found")
 			})

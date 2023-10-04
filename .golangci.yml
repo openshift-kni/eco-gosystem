@@ -108,6 +108,10 @@ issues:
     - path: 'tests/internal/inittools'
       linters:
         - gochecknoinits
+        
+    - path: 'tests/gitopsztp/internal/gitopsztpinittools'
+      linters:
+        - gochecknoinits
 
     - path: 'tests/ran-du/internal/randuinittools'
       linters:

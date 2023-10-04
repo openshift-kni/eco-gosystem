@@ -13,6 +13,7 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/internal/argocdparams"
 	_ "github.com/openshift-kni/eco-gosystem/tests/gitopsztp/argocd/tests"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
+	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	. "github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
 
 	. "github.com/onsi/gomega"
@@ -35,7 +36,7 @@ var _ = BeforeSuite(func() {
 	err := gitopsztphelper.InitializeClients()
 	Expect(err).ToNot(HaveOccurred())
 
-	namespace := namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.ZtpTestNamespace)
+	namespace := namespace.NewBuilder(gitopsztpinittools.HubAPIClient, argocdparams.ZtpTestNamespace)
 
 	// Delete and re-create the namespace to start with a clean state
 	if namespace.Exists() {
@@ -53,7 +54,7 @@ var _ = AfterSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	// Delete the ztp namespace
-	err = namespace.NewBuilder(gitopsztphelper.HubAPIClient, argocdparams.ZtpTestNamespace).Delete()
+	err = namespace.NewBuilder(gitopsztpinittools.HubAPIClient, argocdparams.ZtpTestNamespace).Delete()
 	Expect(err).ToNot(HaveOccurred())
 })
 
