@@ -25,6 +25,8 @@ type RanDuConfig struct {
 		CreateShellCmd string `yaml:"create_shell_cmd" envconfig:"ECO_RANDU_TESTWORKLOAD_CREATE_SHELLCMD"`
 	} `yaml:"randu_test_workload"`
 	SoftRebootIterations string `yaml:"soft_reboot_iterations" envconfig:"ECO_RANDU_SOFT_REBOOT_ITERATIONS"`
+	HardRebootIterations string `yaml:"hard_reboot_iterations" envconfig:"ECO_RANDU_HARD_REBOOT_ITERATIONS"`
+	IpmiToolImage        string `yaml:"ipmitool_image" envconfig:"ECO_RANDU_IPMITOOL_IMAGE"`
 }
 
 // NewRanDuConfig returns instance of RanDuConfig config type.

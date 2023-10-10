@@ -628,7 +628,7 @@ github.com/onsi/gomega/types
 # github.com/opencontainers/go-digest v1.0.0
 ## explicit; go 1.13
 github.com/opencontainers/go-digest
-# github.com/openshift-kni/eco-goinfra v0.0.0-20230926141153-ce33aad75e9d
+# github.com/openshift-kni/eco-goinfra v0.0.0-20231006185241-4e996b952657
 ## explicit; go 1.19
 github.com/openshift-kni/eco-goinfra/pkg/argocd
 github.com/openshift-kni/eco-goinfra/pkg/assisted
@@ -643,6 +643,7 @@ github.com/openshift-kni/eco-goinfra/pkg/olm
 github.com/openshift-kni/eco-goinfra/pkg/pod
 github.com/openshift-kni/eco-goinfra/pkg/polarion
 github.com/openshift-kni/eco-goinfra/pkg/reporter
+github.com/openshift-kni/eco-goinfra/pkg/scc
 github.com/openshift-kni/eco-goinfra/pkg/sriov
 github.com/openshift-kni/eco-goinfra/pkg/statefulset
 # github.com/openshift-kni/k8sreporter v1.0.4

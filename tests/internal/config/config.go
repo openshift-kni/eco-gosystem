@@ -33,6 +33,7 @@ type GeneralConfig struct {
 	WorkerLabelMap         map[string]string
 	ControlPlaneLabelMap   map[string]string
 	SriovOperatorNamespace string `yaml:"sriov_operator_namespace" envconfig:"ECO_SYSTEM_TESTS_SRIOV_OPERATOR_NAMESPACE"`
+	IpmiToolImage          string `yaml:"ipmitool_image" envconfig:"ECO_SYSTEM_TESTS_IPMITOOL_IMAGE"`
 }
 
 // NewConfig returns instance of GeneralConfig config type.
