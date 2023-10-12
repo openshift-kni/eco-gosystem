@@ -43,6 +43,7 @@ require (
 	github.com/onsi/gomega v1.27.8
 	github.com/openshift-kni/eco-goinfra v0.0.0-20231006185241-4e996b952657
 	github.com/openshift-kni/k8sreporter v1.0.4
+	gonum.org/v1/gonum v0.14.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.27.1
 	k8s.io/apimachinery v0.27.1
