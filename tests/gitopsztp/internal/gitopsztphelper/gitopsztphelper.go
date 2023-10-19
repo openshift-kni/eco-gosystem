@@ -6,12 +6,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
+	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpparams"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -152,4 +155,48 @@ func GetZtpVersionFromArgocd(client *clients.Settings, name string, namespace st
 	}
 
 	return "", fmt.Errorf("unable to identify ztp version")
+}
+
+// IsPodHealthy returns true if a given pod is healthy, otherwise false.
+func IsPodHealthy(pod *pod.Builder) bool {
+	if pod.Object.Status.Phase == v1.PodRunning {
+		if !isPodInCondition(pod, v1.PodReady) {
+			glog.Fatalf("pod condition is not Ready. Message: %s", pod.Object.Status.Message)
+
+			return false
+		} else if pod.Object.Status.Phase != v1.PodSucceeded {
+			// Pod is not running or completed.
+			glog.Fatalf("pod phase is %s. Message: %s", pod.Object.Status.Phase, pod.Object.Status.Message)
+
+			return false
+		}
+	}
+
+	return true
+}
+
+// isPodInCondition returns true if a given pod is in expected condition, otherwise false.
+func isPodInCondition(pod *pod.Builder, condition v1.PodConditionType) bool {
+	for _, c := range pod.Object.Status.Conditions {
+		if c.Type == condition && c.Status == v1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
+}
+
+// IsContainerExistInPod check if a given container exists in a given pod.
+func IsContainerExistInPod(pod *pod.Builder, containerName string) bool {
+	containers := pod.Object.Status.ContainerStatuses
+
+	for _, container := range containers {
+		if container.Name == containerName {
+			glog.V(100).Infof("found %s container\n", containerName)
+
+			return true
+		}
+	}
+
+	return false
 }
