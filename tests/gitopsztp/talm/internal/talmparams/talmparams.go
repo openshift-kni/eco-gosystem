@@ -2,6 +2,21 @@ package talmparams
 
 import (
 	"time"
+
+	"github.com/openshift-kni/k8sreporter"
+	v1 "k8s.io/api/core/v1"
+)
+
+var (
+	// ReporterNamespacesToDump tells to the reporter from where to collect logs.
+	ReporterNamespacesToDump = map[string]string{
+		TalmTestNamespace: "",
+	}
+
+	// ReporterCRDsToDump tells to the reporter what CRs to dump.
+	ReporterCRDsToDump = []k8sreporter.CRData{
+		{Cr: &v1.PodList{}},
+	}
 )
 
 // talm related vars.
