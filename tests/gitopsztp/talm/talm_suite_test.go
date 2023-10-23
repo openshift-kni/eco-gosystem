@@ -12,6 +12,7 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/talm/internal/talmhelper"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/talm/internal/talmparams"
+	_ "github.com/openshift-kni/eco-gosystem/tests/gitopsztp/talm/tests"
 	. "github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
 )
 
