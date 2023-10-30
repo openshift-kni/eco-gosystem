@@ -54,4 +54,22 @@ var _ = Describe("Talm Canary Tests", Ordered, Label("talmcanary"), func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
+	AfterEach(func() {
+		// Cleanup everything
+		errList := talmhelper.CleanupTestResourcesOnClients(
+			clusterList,
+			talmhelper.CguName,
+			talmhelper.PolicyName,
+			talmhelper.Namespace,
+			talmhelper.PlacementBindingName,
+			talmhelper.PlacementRule,
+			talmhelper.PolicySetName,
+			talmhelper.CatalogSourceName)
+		Expect(errList).To(BeEmpty())
+
+		// Cleanup the temporary namespace
+		err := talmhelper.CleanupNamespace(clusterList, talmhelper.TemporaryNamespaceName)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
 })
