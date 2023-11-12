@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/openshift-kni/eco-goinfra/pkg/cgu"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
+	"github.com/openshift-kni/eco-goinfra/pkg/ocm"
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
+
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	k8sErr "k8s.io/apimachinery/pkg/api/errors"
@@ -161,14 +164,90 @@ func CleanupTestResourcesOnClients(
 	var cleanupErrors []error
 
 	// Loop over all clients for cleanup
-
-	// complete function
 	for _, client := range clients {
 		// Perform the deletes
 		glog.V(100).Infof("cleaning up resources on client '%s'", client.Config.Host)
+
+		cleanupErr := CleanupTestResourcesOnClient(
+			client,
+			cguName,
+			policyName,
+			createdNamespace,
+			placementBinding,
+			placementRule,
+			policySet,
+			catsrcName,
+			true,
+		)
+		if len(cleanupErr) != 0 {
+			cleanupErrors = append(cleanupErrors, cleanupErr...)
+		}
 	}
 
 	return cleanupErrors
+}
+
+// CleanupTestResourcesOnClient is used to delete everything on a specific cluster.
+func CleanupTestResourcesOnClient(
+	client *clients.Settings,
+	cguName string,
+	policyName string,
+	nsName string,
+	placementBinding string,
+	placementRule string,
+	policySet string,
+	catsrcName string,
+	deleteNs bool,
+) []error {
+	// Create a list of errorList
+	var errorList []error
+
+	// Check for nil client first
+	if client == nil {
+		errorList = append(errorList, errors.New("provided nil client"))
+
+		return errorList
+	}
+
+	// Attempt to delete cgu
+	glog.V(100).Infof("Deleting cgu '%s'", cguName)
+
+	// delete cgu
+	cgu, err := cgu.Pull(client, cguName, nsName)
+	if err != nil {
+		errorList = append(errorList, err)
+	}
+
+	_, err = cgu.Delete()
+	if err != nil {
+		errorList = append(errorList, err)
+	}
+
+	// delete policy
+	policy, err := ocm.Pull(client, policyName, nsName)
+	if err != nil {
+		errorList = append(errorList, err)
+	}
+
+	_, err = policy.Delete()
+	if err != nil {
+		errorList = append(errorList, err)
+	}
+
+	// delete namespace
+	if nsName != "" && deleteNs {
+		glog.V(100).Infof("Deleting namespace '%s'", nsName)
+
+		ns := namespace.NewBuilder(client, nsName)
+		if ns.Exists() {
+			err := ns.DeleteAndWait(5 * time.Minute)
+			if err != nil {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+
+	return errorList
 }
 
 // CleanupNamespace is used to cleanup a namespace on multiple clients.
