@@ -41,7 +41,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.8
-	github.com/openshift-kni/eco-goinfra v0.0.0-20231109170421-ae153f384637
+	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20230810161322-3ef5efb0de85
 	github.com/openshift-kni/k8sreporter v1.0.4
 	gonum.org/v1/gonum v0.14.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -49,6 +49,8 @@ require (
 	k8s.io/apimachinery v0.27.4
 	k8s.io/client-go v12.0.0+incompatible
 )
+
+require github.com/openshift-kni/eco-goinfra v0.0.0-20231109170421-ae153f384637
 
 require (
 	cloud.google.com/go/compute v1.18.0 // indirect
@@ -171,7 +173,6 @@ require (
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20230620093014-45a940d6f70d // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20230810161322-3ef5efb0de85 // indirect
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible // indirect
 	github.com/openshift/assisted-service/api v0.0.0-20230906121258-6d85fb16f8dd // indirect
 	github.com/openshift/assisted-service/models v0.0.0 // indirect
@@ -238,7 +239,7 @@ require (
 	gorm.io/gorm v1.23.1 // indirect
 	k8s.io/apiextensions-apiserver v0.27.1 // indirect
 	k8s.io/apiserver v0.26.2 // indirect
-	k8s.io/cli-runtime v0.26.1 // indirect
+	k8s.io/cli-runtime v0.26.4 // indirect
 	k8s.io/component-base v0.27.1 // indirect
 	k8s.io/component-helpers v0.26.2 // indirect
 	k8s.io/klog v1.0.0 // indirect
@@ -249,6 +250,7 @@ require (
 	k8s.io/kubelet v0.26.2 // indirect
 	k8s.io/kubernetes v1.25.4 // indirect
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
+	open-cluster-management.io/config-policy-controller v0.12.0
 	open-cluster-management.io/governance-policy-propagator v0.11.0 // indirect
 	open-cluster-management.io/multicloud-operators-subscription v0.10.0 // indirect
 	sigs.k8s.io/controller-runtime v0.14.6 // indirect

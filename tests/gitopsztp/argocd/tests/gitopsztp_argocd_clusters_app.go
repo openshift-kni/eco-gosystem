@@ -32,7 +32,7 @@ var _ = Describe("ZTP Argocd clusters Tests", Ordered, Label("ztp-argocd-cluster
 
 		// Check for minimum ztp version
 		By("Checking the ZTP version", func() {
-			if !argocdhelper.IsVersionStringInRange(
+			if !gitopsztphelper.IsVersionStringInRange(
 				gitopsztphelper.ZtpVersion,
 				"4.11",
 				"",

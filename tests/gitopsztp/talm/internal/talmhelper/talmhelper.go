@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/openshift-kni/cluster-group-upgrades-operator/api/v1alpha1"
 	"github.com/openshift-kni/eco-goinfra/pkg/cgu"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
@@ -16,16 +18,22 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztphelper"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	k8sErr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/talm/internal/talmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
+	// Spoke1Name name of the first spoke.
+	Spoke1Name string
 	// Spoke2APIClient api client of the second spoke.
 	Spoke2APIClient *clients.Settings
 	// Spoke2Name name of the second spoke.
 	Spoke2Name string
+	// TalmHubVersion talm hub version on hub.
+	TalmHubVersion string
 )
 
 // talm consts.
@@ -263,4 +271,411 @@ func CleanupNamespace(clients []*clients.Settings, ns string) error {
 	}
 
 	return nil
+}
+
+// GetCguDefinition is used to get a CGU with simplified parameters.
+func GetCguDefinition(
+	cguName string,
+	clusterList []string,
+	canaryList []string,
+	managedPolicies []string,
+	namespace string,
+	maxConcurrency int,
+	timeout int) cgu.CguBuilder {
+	customResource := cgu.CguBuilder{
+		Definition: &v1alpha1.ClusterGroupUpgrade{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ClusterGroupUpgrade",
+				APIVersion: v1alpha1.SchemeGroupVersion.Version,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cguName,
+				Namespace: namespace,
+			},
+			Spec: v1alpha1.ClusterGroupUpgradeSpec{
+				Backup:                false,
+				PreCaching:            false,
+				Enable:                BoolAddr(true),
+				Clusters:              clusterList,
+				ClusterLabelSelectors: nil,
+				ManagedPolicies:       managedPolicies,
+				RemediationStrategy: &v1alpha1.RemediationStrategySpec{
+					MaxConcurrency: maxConcurrency,
+					Timeout:        timeout,
+					Canaries:       canaryList,
+				},
+			},
+		},
+	}
+
+	return customResource
+}
+
+// BoolAddr is used to convert a boolean to a boolean pointer.
+func BoolAddr(b bool) *bool {
+	boolVar := b
+
+	return &boolVar
+}
+
+// IsClusterStartedInCgu can be used to check if a particular cluster has started
+// being remediated in the provided cgu and namespace.
+func IsClusterStartedInCgu(
+	client *clients.Settings,
+	cguName string,
+	clusterName string,
+	namespace string) (bool, error) {
+	cgu, err := cgu.Pull(client, cguName, namespace)
+	if err != nil {
+		return false, err
+	}
+
+	clusterStatus := cgu.Object.Status.Status.CurrentBatchRemediationProgress[clusterName]
+	if clusterStatus != nil {
+		if clusterStatus.State != "NotStarted" {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// WaitForCguToFinishSuccessfully waits until the provided CGU reaches the succeeded state
+// and all clusters were successful message.
+func WaitForCguToFinishSuccessfully(cguName string, namespace string, timeout time.Duration) error {
+	// Wait for the cgu to finish
+	glog.V(100).Info("waiting for CGU to finish successfully")
+
+	// TALM uses different conditions starting in 4.12
+	conditionType := SucceededType
+	conditionReason := ConditionReasonCompleted
+
+	if !gitopsztphelper.IsVersionStringInRange(
+		TalmHubVersion,
+		talmparams.TalmUpdatedConditionsVersion,
+		"",
+	) {
+		conditionType = ReadyType
+		conditionReason = ConditionReasonUpgradeCompleted
+	}
+
+	return WaitForCguInCondition(
+		gitopsztpinittools.HubAPIClient,
+		cguName,
+		namespace,
+		conditionType,
+		"",
+		metav1.ConditionTrue,
+		conditionReason,
+		timeout,
+	)
+}
+
+// WaitForCguInCondition waits until a specified condition type
+// matches the provided message and/or status.
+func WaitForCguInCondition(
+	client *clients.Settings,
+	cguName string,
+	namespace string,
+	conditionType string,
+	expectedMessage string,
+	expectedStatus metav1.ConditionStatus,
+	expectedReason string,
+	timeout time.Duration) error {
+	// This will be used inside the wait to keep track of the current status
+	// Since we can't return an error outside the poll we need to save it outside the loop
+	// and then return it after timeout occurs.
+	var lastStatus error
+
+	msg := fmt.Sprintf("Waiting for cgu %s in namespace %s to be in condition: %s=%s",
+		cguName, namespace, conditionType, expectedStatus)
+	if expectedReason != "" {
+		msg = msg + ", with reason: " + expectedReason
+	}
+
+	glog.V(100).Info(msg)
+	// Use a poll to check the cgu condition
+	_ = wait.PollImmediate(
+		talmparams.TalmTestPollInterval,
+		timeout,
+		func() (done bool, err error) {
+			// Get the CGU
+			clusterGroupUpgrade, err := cgu.Pull(client, cguName, namespace)
+			if err != nil {
+				lastStatus = err
+
+				return false, err
+			}
+
+			// Get the condition
+			condition := meta.FindStatusCondition(clusterGroupUpgrade.Object.Status.Conditions, conditionType)
+
+			// If the condition does not exist that is not considered a match
+			if condition == nil {
+				lastStatus = fmt.Errorf("condition for type '%s' was nil", conditionType)
+
+				return false, nil
+			}
+
+			// Check the status if it was defined
+			if expectedStatus != "" {
+				if condition.Status != expectedStatus {
+					lastStatus = fmt.Errorf(
+						"actual status '%s' did not match expected status '%s'",
+						condition.Status,
+						expectedStatus,
+					)
+
+					return false, nil
+				}
+			}
+
+			// Check the message if it was defined
+			if expectedMessage != "" {
+				if !strings.Contains(condition.Message, expectedMessage) {
+					lastStatus = fmt.Errorf(
+						"actual message '%s' did not contain expected message '%s'",
+						condition.Message,
+						expectedMessage,
+					)
+
+					return false, nil
+				}
+			}
+
+			// Check the reason if it was defined
+			if expectedReason != "" {
+				if condition.Reason != expectedReason {
+					lastStatus = fmt.Errorf(
+						"actual reason '%s' did not match expected reason '%s'",
+						condition.Reason,
+						expectedReason,
+					)
+
+					return false, nil
+				}
+			}
+
+			// If it did match we will return nil here to exit the eventually
+			lastStatus = nil
+
+			return true, nil
+		},
+	)
+
+	return lastStatus
+}
+
+// WaitForClusterInProgressInCgu can be used to wait until the provided cluster is actively
+// being remediated in the provided cgu and namespace.
+func WaitForClusterInProgressInCgu(
+	client *clients.Settings,
+	cguName string,
+	clusterName string,
+	namespace string,
+	timeout time.Duration) error {
+	// Print the current check
+	glog.V(100).Infof("Waiting until cluster '%s' in progress in cgu '%s'",
+		clusterName,
+		cguName,
+	)
+
+	err := wait.PollImmediate(
+		15*time.Second,
+		timeout,
+		func() (bool, error) {
+			ok, err := IsClusterInProgressInCgu(client, cguName, clusterName, namespace)
+			if err != nil {
+				return true, err
+			}
+
+			return ok, nil
+		},
+	)
+
+	return err
+}
+
+// IsClusterInProgressInCgu can be used to check if a particular cluster is actively
+// being remediated in the provided cgu and namespace.
+func IsClusterInProgressInCgu(
+	client *clients.Settings,
+	cguName string,
+	clusterName string,
+	namespace string) (bool, error) {
+	cgu, err := cgu.Pull(client, cguName, namespace)
+	if err != nil {
+		return false, err
+	}
+
+	clusterStatus := cgu.Object.Status.Status.CurrentBatchRemediationProgress[clusterName]
+	if clusterStatus != nil {
+		if clusterStatus.State == "InProgress" {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// CreateCguAndWait is used to create a CGU with the provided clusters list and managed policies.
+// No policies, placements, bindings, policysets, etc will be created.
+func CreateCguAndWait(
+	client *clients.Settings,
+	clusterGroupUpgrade cgu.CguBuilder) error {
+	if client == nil {
+		return errors.New("provided nil client")
+	}
+
+	if len(clusterGroupUpgrade.Definition.Spec.Clusters) > 0 {
+		for _, cluster := range clusterGroupUpgrade.Definition.Spec.Clusters {
+			if cluster == "" {
+				return errors.New("provided empty cluster in clustersList")
+			}
+		}
+	}
+
+	if len(clusterGroupUpgrade.Definition.Spec.ManagedPolicies) > 0 {
+		for _, policy := range clusterGroupUpgrade.Definition.Spec.ManagedPolicies {
+			if policy == "" {
+				return errors.New("provided empty policy in managedPolicies")
+			}
+			// If the fully generated name of the talm enforce policy is > 63 characters then they will just not work.
+			// There is some wiggle room here since there is an additional identifier on the end of the policy.
+			// So instead of hard erroring just print a warning if the length is possibly an issue.
+			if len(policy)+len(clusterGroupUpgrade.Definition.Name) > 50 {
+				glog.V(100).Info("Warning: Length of generated TALM policies may exceed character limit and not work")
+			}
+		}
+	}
+
+	if clusterGroupUpgrade.Definition.Name == "" {
+		return errors.New("provided empty cguName")
+	}
+
+	_, err := clusterGroupUpgrade.Create()
+	if err != nil {
+		return err
+	}
+
+	err = WaitUntilObjectExists(
+		client,
+		clusterGroupUpgrade.Definition.Name,
+		clusterGroupUpgrade.Definition.Namespace,
+		IsCguExist,
+	)
+
+	return err
+}
+
+// IsCguExist can be used to check if a specific cgu exists.
+func IsCguExist(client *clients.Settings, cguName string, namespace string) (bool, error) {
+	glog.V(100).Infof("Checking for existence of cgu '%s' in namespace '%s'\n", cguName, namespace)
+
+	_, err := cgu.Pull(client, cguName, namespace)
+
+	// Filter errors that don't matter
+	filtered := FilterMissingResourceErrors(err)
+
+	// If err was defined but filtered is nil, then the resource no longer exists
+	if err != nil && filtered == nil {
+		return false, nil
+	}
+
+	// If filtered it not nil then an actual error occurred
+	if filtered != nil {
+		return false, filtered
+	}
+
+	// Else assume it exists
+	return true, nil
+}
+
+// WaitUntilObjectExists can be called to wait until a specified resource is present.
+// This is called by all of the CreateXAndWait functions in this file.
+func WaitUntilObjectExists(
+	client *clients.Settings,
+	objectName string,
+	namespace string,
+	getStatus func(client *clients.Settings, objectName string, namespace string) (bool, error)) error {
+	// Wait for it to exist
+	err := wait.PollImmediate(
+		15*time.Second,
+		5*time.Minute,
+		func() (bool, error) {
+			status, err := getStatus(client, objectName, namespace)
+
+			// Wait until it definitely exists
+			if err == nil && status {
+				return true, nil
+			}
+
+			// Assume it does not exist otherwise
+			return false, nil
+		},
+	)
+
+	return err
+}
+
+// FilterMissingResourceErrors takes an input error and checks it for a few specific types of errors.
+// If it matches any of the errors that are considered to be a resource not found, then it returns nil.
+// Otherwise it returns the original error.
+func FilterMissingResourceErrors(err error) error {
+	// If the error was nil just immediately return
+	if err == nil {
+		return nil
+	}
+
+	// Reduce logging until we can have different log levels in future project
+	// log.Printf("Checking error '%s'", err.Error())
+
+	if strings.Contains(err.Error(), "server could not find the requested resource") {
+		return nil
+	}
+
+	if strings.Contains(err.Error(), "no matches for kind") {
+		return nil
+	}
+
+	if strings.Contains(err.Error(), "not found") {
+		return nil
+	}
+
+	return err
+}
+
+// CreatePolicyAndWait is used to create a policy and wait for it to exist.
+func CreatePolicyAndWait(client *clients.Settings, policy ocm.PolicyBuilder) error {
+	// Create the policy
+	_, err := policy.Create()
+	if err != nil {
+		return err
+	}
+
+	// Wait for it to exist
+	err = WaitUntilObjectExists(
+		client,
+		policy.Definition.Name,
+		policy.Definition.Namespace,
+		IsPolicyExist,
+	)
+
+	return err
+}
+
+// IsPolicyExist can be used to check if a specific policy exists.
+func IsPolicyExist(client *clients.Settings, policyName string, namespace string) (bool, error) {
+	glog.V(100).Info("Checking for existence of policy '%s' in namespace '%s'\n", policyName, namespace)
+
+	// We can use another helper to get the object
+	policy, err := ocm.Pull(client, policyName, namespace)
+
+	// Filter any missing resource errors before checking the result
+	err = FilterMissingResourceErrors(err)
+	if err != nil {
+		return false, err
+	}
+
+	return policyName == policy.Object.Name, nil
 }
