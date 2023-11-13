@@ -3,6 +3,7 @@ package olm
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/golang/glog"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
@@ -13,19 +14,34 @@ import (
 func ListClusterServiceVersion(
 	apiClient *clients.Settings,
 	nsname string,
-	options metaV1.ListOptions) ([]*ClusterServiceVersionBuilder, error) {
-	glog.V(100).Infof("Listing clusterserviceversions in the namespace %s with the options %v", nsname, options)
-
+	options ...metaV1.ListOptions) ([]*ClusterServiceVersionBuilder, error) {
 	if nsname == "" {
 		glog.V(100).Infof("clusterserviceversion 'nsname' parameter can not be empty")
 
-		return nil, fmt.Errorf("failed to list clusterserviceversions, 'nsname' parameter is empty")
+		return nil, fmt.Errorf("failed to list clusterserviceversion, 'nsname' parameter is empty")
 	}
 
-	csvList, err := apiClient.OperatorsV1alpha1Interface.ClusterServiceVersions(nsname).List(context.Background(), options)
+	passedOptions := metaV1.ListOptions{}
+	logMessage := fmt.Sprintf("Listing clusterserviceversion in the namespace %s", nsname)
+
+	if len(options) > 1 {
+		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+
+		return nil, fmt.Errorf("error: more than one ListOptions was passed")
+	}
+
+	if len(options) == 1 {
+		passedOptions = options[0]
+		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
+	}
+
+	glog.V(100).Infof(logMessage)
+
+	csvList, err := apiClient.OperatorsV1alpha1Interface.ClusterServiceVersions(nsname).List(
+		context.Background(), passedOptions)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to list clusterserviceversions in the nsname %s due to %s", nsname, err.Error())
+		glog.V(100).Infof("Failed to list clusterserviceversion in the nsname %s due to %s", nsname, err.Error())
 
 		return nil, err
 	}
@@ -44,4 +60,42 @@ func ListClusterServiceVersion(
 	}
 
 	return csvObjects, nil
+}
+
+// ListClusterServiceVersionWithNamePattern returns a cluster-wide clusterserviceversion inventory
+// filtered by the name pattern.
+func ListClusterServiceVersionWithNamePattern(
+	apiClient *clients.Settings,
+	namePattern string,
+	nsname string,
+	options ...metaV1.ListOptions) ([]*ClusterServiceVersionBuilder, error) {
+	if namePattern == "" {
+		glog.V(100).Info(
+			"The namePattern field to filter out all relevant clusterserviceversion cannot be empty")
+
+		return nil, fmt.Errorf(
+			"the namePattern field to filter out all relevant clusterserviceversion cannot be empty")
+	}
+
+	glog.V(100).Infof("Listing clusterserviceversion filtered by the name pattern %s in %s namespace",
+		namePattern, nsname)
+
+	notFilteredCsvList, err := ListClusterServiceVersion(apiClient, nsname, options...)
+
+	if err != nil {
+		glog.V(100).Infof("Failed to list all clusterserviceversions in namespace %s due to %s",
+			nsname, err.Error())
+
+		return nil, err
+	}
+
+	var finalCsvList []*ClusterServiceVersionBuilder
+
+	for _, foundCsv := range notFilteredCsvList {
+		if strings.Contains(foundCsv.Definition.Name, namePattern) {
+			finalCsvList = append(finalCsvList, foundCsv)
+		}
+	}
+
+	return finalCsvList, nil
 }
