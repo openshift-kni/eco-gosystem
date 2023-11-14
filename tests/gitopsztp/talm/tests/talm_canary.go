@@ -71,5 +71,4 @@ var _ = Describe("Talm Canary Tests", Ordered, Label("talmcanary"), func() {
 		err := talmhelper.CleanupNamespace(clusterList, talmhelper.TemporaryNamespaceName)
 		Expect(err).ToNot(HaveOccurred())
 	})
-
 })
