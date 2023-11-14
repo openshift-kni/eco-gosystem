@@ -3,7 +3,9 @@ package gitopsztphelper
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
@@ -30,6 +32,86 @@ var (
 	// TalmVersion talm version.
 	TalmVersion string
 )
+
+// IsVersionStringInRange can be used to check if a version string is between a specified min and max value.
+// All the string inputs to this function should be dot separated positive intergers, e.g. "1.0.0" or "4.10".
+// Each string inputs must be at least two dot separarted integers but may also be 3 or more.
+func IsVersionStringInRange(version, minimum, maximum string) bool {
+	// First we will define a helper to validate that a string is at least two dot separated positive integers
+	ValidateInputString := func(input string) (bool, []int) {
+		// Split the input string on the dot character
+		versionSplits := strings.Split(input, ".")
+
+		// We need at least two digits to verify
+		if len(versionSplits) < 2 {
+			return false, []int{}
+		}
+
+		// Prepare a list of digits to return later
+		digits := []int{}
+
+		// Check if the first two splits are valid integers
+		for i := 0; i < 2; i++ {
+			// Attempt to convert the string to an integer
+			digit, err := strconv.Atoi(versionSplits[i])
+			if err != nil {
+				return false, []int{}
+			}
+
+			// Save the digit
+			digits = append(digits, digit)
+		}
+
+		// Otherwise if we've passed all the checks it is a valid version string
+		return true, digits
+	}
+
+	versionValid, versionDigits := ValidateInputString(version)
+	minimumValid, minimumDigits := ValidateInputString(minimum)
+	maximumValid, maximumDigits := ValidateInputString(maximum)
+
+	if !minimumValid {
+		// We don't want any bad minimums to be passed at all, so panic if minimum wasn't an empty string
+		if minimum != "" {
+			panic(fmt.Errorf("invalid minimum provided: '%s'", minimum))
+		}
+
+		// Assume the minimum digits are [0,0] for later comparison
+		minimumDigits = []int{0, 0}
+	}
+
+	if !maximumValid {
+		// We don't want any bad maximums to be passed at all, so panic if maximum wasn't an empty string
+		if maximum != "" {
+			panic(fmt.Errorf("invalid maximum provided: '%s'", maximum))
+		}
+
+		// Assume the maximum digits are [math.MaxInt, math.MaxInt] for later comparison
+		maximumDigits = []int{math.MaxInt, math.MaxInt}
+	}
+
+	// If the version was not valid then we need to check the min and max
+	if !versionValid {
+		// If no min or max was defined then return true
+		if !minimumValid && !maximumValid {
+			return true
+		}
+
+		// Otherwise return whether the input maximum was an empty string or not
+		return maximum == ""
+	}
+
+	// Otherwise the versions were valid so compare the digits
+	for i := 0; i < 2; i++ {
+		// The version bit should be between the minimum and maximum
+		if versionDigits[i] < minimumDigits[i] || versionDigits[i] > maximumDigits[i] {
+			return false
+		}
+	}
+
+	// At the end if we never returned then all the digits were in valid range
+	return true
+}
 
 // InitializeClients initializes hub & spoke clients.
 func InitializeClients() error {
