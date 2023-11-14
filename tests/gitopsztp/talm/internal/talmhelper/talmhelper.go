@@ -19,7 +19,12 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	k8sErr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	configurationPolicyv1 "open-cluster-management.io/config-policy-controller/api/v1"
+	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
+	v1 "open-cluster-management.io/governance-policy-propagator/api/v1"
+	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/talm/internal/talmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -678,4 +683,231 @@ func IsPolicyExist(client *clients.Settings, policyName string, namespace string
 	}
 
 	return policyName == policy.Object.Name, nil
+}
+
+// CreateSimplePolicyAndCgu is used to create a simplified CGU to cover the most common use case.
+// This will automatically create a single policy enforcing the compliance type on the provided object.
+// If you require multiple policies to be managed then consider CreateCgu() instead.
+func CreatePolicyAndCgu(
+	client *clients.Settings,
+	object runtime.Object,
+	complianceType configurationPolicyv1.ComplianceType,
+	remediationAction configurationPolicyv1.RemediationAction,
+	policyName string,
+	policySetName string,
+	placementBindingName string,
+	placementRule string,
+	namespace string,
+	clusterSelector metav1.LabelSelector,
+	clusterGroupUpgrade cgu.CguBuilder) error {
+	// Step 1 - Create simple policy with all required components
+	err := CreatePolicyWithAllComponents(
+		client,
+		object,
+		complianceType,
+		remediationAction,
+		policyName,
+		policySetName,
+		placementBindingName,
+		placementRule,
+		namespace,
+		clusterGroupUpgrade.Definition.Spec.Clusters,
+		clusterSelector,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Step 2 - Create the cgu
+	err = CreateCguAndWait(
+		client,
+		clusterGroupUpgrade,
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreatePolicyWithAllComponents is used to create a policy and all the requireed components for
+// applying that policy such as policyset, placementrule, placement binding, etc.
+func CreatePolicyWithAllComponents(
+	client *clients.Settings,
+	object runtime.Object,
+	complianceType configurationPolicyv1.ComplianceType,
+	remediationAction configurationPolicyv1.RemediationAction,
+	policyName string,
+	policySetName string,
+	placementBindingName string,
+	placementRule string,
+	namespace string,
+	clusters []string,
+	clusterSelector metav1.LabelSelector,
+) error {
+	// Step 0 - Validate inputs
+	if client == nil {
+		return errors.New("provided nil client")
+	}
+
+	if object == nil {
+		return errors.New("provided nil object")
+	}
+
+	if policyName == "" {
+		return errors.New("provided empty policyName")
+	}
+
+	if policySetName == "" {
+		return errors.New("provided empty policySetName")
+	}
+
+	if placementBindingName == "" {
+		return errors.New("provided empty placementBindingName")
+	}
+
+	if placementRule == "" {
+		return errors.New("provided empty placementRule")
+	}
+
+	if namespace == "" {
+		return errors.New("provided empty namespace")
+	}
+
+	// Step 1 - Create the policy
+	glog.V(100).Info("create the policy that the cgu will apply")
+	configurationPolicy := GetConfigurationPolicyDefinition(policyName, complianceType, remediationAction, object)
+
+	cguPolicy := GetPolicyDefinition(policyName, namespace, &configurationPolicy, remediationAction)
+
+	return ApplyPolicyAndCreateAllComponents(client,
+		cguPolicy,
+		policySetName,
+		placementBindingName,
+		placementRule,
+		namespace,
+		clusters,
+		clusterSelector)
+}
+
+// GetConfigurationPolicyDefinition is used to get a configuration policy that contains the provided object.
+func GetConfigurationPolicyDefinition(
+	policyName string,
+	complianceType configurationPolicyv1.ComplianceType,
+	remediationAction configurationPolicyv1.RemediationAction,
+	object runtime.Object) configurationPolicyv1.ConfigurationPolicy {
+	customResource := configurationPolicyv1.ConfigurationPolicy{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigurationPolicy",
+			APIVersion: "policy.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-config", policyName),
+		},
+		Spec: &configurationPolicyv1.ConfigurationPolicySpec{
+			Severity:          "low",
+			RemediationAction: remediationAction,
+			NamespaceSelector: configurationPolicyv1.Target{
+				Include: []configurationPolicyv1.NonEmptyString{"kube-*"},
+				Exclude: []configurationPolicyv1.NonEmptyString{"*"},
+			},
+			ObjectTemplates: []*configurationPolicyv1.ObjectTemplate{
+				{
+					ComplianceType: complianceType,
+					ObjectDefinition: runtime.RawExtension{
+						Object: object,
+					},
+				},
+			},
+			EvaluationInterval: configurationPolicyv1.EvaluationInterval{
+				Compliant:    "10s",
+				NonCompliant: "10s",
+			},
+		},
+	}
+
+	return customResource
+}
+
+// GetPolicyDefinition is used to get a policy that can be used with a CGU.
+func GetPolicyDefinition(
+	policyName string,
+	namespace string,
+	object runtime.Object,
+	remediationAction configurationPolicyv1.RemediationAction) ocm.PolicyBuilder {
+	customResource := ocm.PolicyBuilder{
+		Definition: &v1.Policy{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Policy",
+				APIVersion: policiesv1.SchemeGroupVersion.Version,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      policyName,
+				Namespace: namespace,
+			},
+			Spec: policiesv1.PolicySpec{
+				Disabled: false,
+				PolicyTemplates: []*policiesv1.PolicyTemplate{
+					{
+						ObjectDefinition: runtime.RawExtension{
+							Object: object,
+						},
+					},
+				},
+				RemediationAction: policiesv1.RemediationAction(remediationAction),
+			},
+		},
+	}
+
+	return customResource
+}
+
+// ApplyPolicyAndCreateAllComponents is used only apply already created policy and all the required components for
+// applying that policy such as policyset, placementrule, placement binding, etc.
+func ApplyPolicyAndCreateAllComponents(
+	client *clients.Settings,
+	policy ocm.PolicyBuilder,
+	policySetName string,
+	placementBindingName string,
+	placementRule string,
+	namespace string,
+	clusters []string,
+	clusterSelector metav1.LabelSelector,
+) error {
+	err := CreatePolicyAndWait(client, policy)
+
+	if err != nil {
+		return err
+	}
+
+	// Step 2 - Create the policy set
+	glog.V(100).Info("creating the policyset")
+
+	var nonEmptyStringList []policiesv1beta1.NonEmptyString
+	nonEmptyStringList = append(nonEmptyStringList, policiesv1beta1.NonEmptyString(policy.Definition.Name))
+	// TO COMPLETE
+
+	return nil
+}
+
+// GetPolicySetDefinition is used to get a policy set for the provided policies.
+func GetPolicySetDefinition(
+	policySetName string,
+	policyList []policiesv1beta1.NonEmptyString,
+	namespace string) policiesv1beta1.PolicySet {
+	customResource := policiesv1beta1.PolicySet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "PolicySet",
+			APIVersion: policiesv1beta1.GroupVersion.Version,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      policySetName,
+			Namespace: namespace,
+		},
+		Spec: policiesv1beta1.PolicySetSpec{
+			Policies: policyList,
+		},
+	}
+
+	return customResource
 }
