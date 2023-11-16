@@ -79,7 +79,7 @@ var _ = Describe("Talm Canary Tests", Ordered, Label("talmcanary"), func() {
 	})
 
 	Context("where all the canaries are successful", func() {
-		// 47947
+
 		It("should complete the CGU", polarion.ID("47947"), func() {
 
 			By("creating the cgu and associated resources", func() {
