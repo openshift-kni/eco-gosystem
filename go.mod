@@ -251,7 +251,7 @@ require (
 	k8s.io/kubernetes v1.25.4 // indirect
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
 	open-cluster-management.io/config-policy-controller v0.12.0
-	open-cluster-management.io/governance-policy-propagator v0.11.0 // indirect
+	open-cluster-management.io/governance-policy-propagator v0.11.0
 	open-cluster-management.io/multicloud-operators-subscription v0.10.0 // indirect
 	sigs.k8s.io/controller-runtime v0.14.6 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
