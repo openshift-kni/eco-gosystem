@@ -236,7 +236,7 @@ func CleanupTestResourcesOnClient(
 	}
 
 	// delete policy
-	policy, err := ocm.Pull(client, policyName, nsName)
+	policy, err := ocm.PullPolicy(client, policyName, nsName)
 	if err != nil {
 		errorList = append(errorList, err)
 	}
@@ -673,7 +673,7 @@ func IsPolicyExist(client *clients.Settings, policyName string, namespace string
 	glog.V(100).Info("Checking for existence of policy '%s' in namespace '%s'\n", policyName, namespace)
 
 	// We can use another helper to get the object
-	policy, err := ocm.Pull(client, policyName, namespace)
+	policy, err := ocm.PullPolicy(client, policyName, namespace)
 
 	// Filter any missing resource errors before checking the result
 	err = FilterMissingResourceErrors(err)
@@ -885,6 +885,18 @@ func ApplyPolicyAndCreateAllComponents(
 
 	// TO COMPLETE
 
+	var nonEmptyStringList []policiesv1beta1.NonEmptyString
+	nonEmptyStringList = append(nonEmptyStringList, policiesv1beta1.NonEmptyString(policy.Definition.Name))
+
+	policySet := GetPolicySetDefinition(policySetName, nonEmptyStringList, namespace)
+
+	_, err = policySet.Create()
+	if err != nil {
+		return err
+	}
+
+	// COMPLETE
+
 	return nil
 }
 
@@ -892,18 +904,20 @@ func ApplyPolicyAndCreateAllComponents(
 func GetPolicySetDefinition(
 	policySetName string,
 	policyList []policiesv1beta1.NonEmptyString,
-	namespace string) policiesv1beta1.PolicySet {
-	customResource := policiesv1beta1.PolicySet{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "PolicySet",
-			APIVersion: policiesv1beta1.GroupVersion.Version,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      policySetName,
-			Namespace: namespace,
-		},
-		Spec: policiesv1beta1.PolicySetSpec{
-			Policies: policyList,
+	namespace string) ocm.PolicySetBuilder {
+	customResource := ocm.PolicySetBuilder{
+		Definition: &policiesv1beta1.PolicySet{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "PolicySet",
+				APIVersion: policiesv1beta1.GroupVersion.Version,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      policySetName,
+				Namespace: namespace,
+			},
+			Spec: policiesv1beta1.PolicySetSpec{
+				Policies: policyList,
+			},
 		},
 	}
 
