@@ -303,16 +303,17 @@ func (builder *AgentClusterInstallBuilder) WaitForState(
 
 	// Polls every second to determine if agentclusterinstall in desired state.
 	var err error
-	err = wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		builder.Object, err = builder.Get()
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
 
-		if err != nil {
-			return false, nil
-		}
+			if err != nil {
+				return false, nil
+			}
 
-		return builder.Object.Status.DebugInfo.State == state, err
+			return builder.Object.Status.DebugInfo.State == state, err
 
-	})
+		})
 
 	if err == nil {
 		return builder, nil
@@ -331,16 +332,17 @@ func (builder *AgentClusterInstallBuilder) WaitForStateInfo(
 
 	// Polls every second to determine if agentclusterinstall has the desired stateinfo message.
 	var err error
-	err = wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		builder.Object, err = builder.Get()
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
 
-		if err != nil {
-			return false, nil
-		}
+			if err != nil {
+				return false, nil
+			}
 
-		return builder.Object.Status.DebugInfo.StateInfo == stateInfo, err
+			return builder.Object.Status.DebugInfo.StateInfo == stateInfo, err
 
-	})
+		})
 
 	if err == nil {
 		return builder, nil
@@ -378,40 +380,43 @@ func (builder *AgentClusterInstallBuilder) WithOptions(
 // WaitForConditionMessage waits the specified timeout for the given condition to report the specified message.
 func (builder *AgentClusterInstallBuilder) WaitForConditionMessage(
 	conditionType, message string, timeout time.Duration) error {
-	return wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		condition, err := builder.getCondition(conditionType)
-		if err != nil {
-			return false, err
-		}
+	return wait.PollUntilContextTimeout(
+		context.TODO(), retryInterval, timeout, false, func(ctx context.Context) (bool, error) {
+			condition, err := builder.getCondition(conditionType)
+			if err != nil {
+				return false, err
+			}
 
-		return condition.Message == message, nil
-	})
+			return condition.Message == message, nil
+		})
 }
 
 // WaitForConditionStatus waits the specified timeout for the given condition to report the specified status.
 func (builder *AgentClusterInstallBuilder) WaitForConditionStatus(
 	conditionType string, status coreV1.ConditionStatus, timeout time.Duration) error {
-	return wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		condition, err := builder.getCondition(conditionType)
-		if err != nil {
-			return false, err
-		}
+	return wait.PollUntilContextTimeout(
+		context.TODO(), retryInterval, timeout, false, func(ctx context.Context) (bool, error) {
+			condition, err := builder.getCondition(conditionType)
+			if err != nil {
+				return false, err
+			}
 
-		return condition.Status == status, nil
-	})
+			return condition.Status == status, nil
+		})
 }
 
 // WaitForConditionReason waits the specified timeout for the given condition to report the specified reason.
 func (builder *AgentClusterInstallBuilder) WaitForConditionReason(
 	conditionType, reason string, timeout time.Duration) error {
-	return wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		condition, err := builder.getCondition(conditionType)
-		if err != nil {
-			return false, err
-		}
+	return wait.PollUntilContextTimeout(
+		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
+			condition, err := builder.getCondition(conditionType)
+			if err != nil {
+				return false, err
+			}
 
-		return condition.Reason == reason, nil
-	})
+			return condition.Reason == reason, nil
+		})
 }
 
 // GetEvents returns events from the events URL of the AgentClusterInstall.
@@ -557,10 +562,7 @@ func (builder *AgentClusterInstallBuilder) Update(force bool) (*AgentClusterInst
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
-				"Failed to update the agentclusterinstall object %s in namespace %s. "+
-					"Note: Force flag set, executed delete/create methods instead",
-				builder.Definition.Name, builder.Definition.Namespace,
-			)
+				msg.FailToUpdateNotification("agentclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
 
 			err = builder.DeleteAndWait(time.Second * 10)
 			builder.Definition.ResourceVersion = ""
@@ -568,10 +570,7 @@ func (builder *AgentClusterInstallBuilder) Update(force bool) (*AgentClusterInst
 
 			if err != nil {
 				glog.V(100).Infof(
-					"Failed to update the agentclusterinstall object %s in namespace %s, "+
-						"due to error in delete function",
-					builder.Definition.Name, builder.Definition.Namespace,
-				)
+					msg.FailToUpdateError("agentclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -588,27 +587,27 @@ func (builder *AgentClusterInstallBuilder) Update(force bool) (*AgentClusterInst
 }
 
 // Delete removes an agentclusterinstall from the cluster.
-func (builder *AgentClusterInstallBuilder) Delete() (*AgentClusterInstallBuilder, error) {
+func (builder *AgentClusterInstallBuilder) Delete() error {
 	if valid, err := builder.validate(); !valid {
-		return builder, err
+		return err
 	}
 
 	glog.V(100).Infof("Deleting the agentclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		return builder, fmt.Errorf("agentclusterinstall cannot be deleted because it does not exist")
+		return fmt.Errorf("agentclusterinstall cannot be deleted because it does not exist")
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
 
 	if err != nil {
-		return builder, fmt.Errorf("cannot delete agentclusterinstall: %w", err)
+		return fmt.Errorf("cannot delete agentclusterinstall: %w", err)
 	}
 
 	builder.Object = nil
 
-	return builder, nil
+	return nil
 }
 
 // DeleteAndWait deletes an agentclusterinstall and waits until it is removed from the cluster.
@@ -621,20 +620,21 @@ func (builder *AgentClusterInstallBuilder) DeleteAndWait(timeout time.Duration) 
 	waiting for the defined period until it's removed`,
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	if _, err := builder.Delete(); err != nil {
+	if err := builder.Delete(); err != nil {
 		return err
 	}
 
 	// Polls the agentclusterinstall every second until it's removed.
-	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		_, err := builder.Get()
-		if k8serrors.IsNotFound(err) {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := builder.Get()
+			if k8serrors.IsNotFound(err) {
 
-			return true, nil
-		}
+				return true, nil
+			}
 
-		return false, nil
-	})
+			return false, nil
+		})
 }
 
 // Exists checks if the defined agentclusterinstall has already been created.
@@ -659,18 +659,19 @@ func (builder *AgentClusterInstallBuilder) getCondition(conditionType string) (*
 	}
 
 	// wait for agentclusterinstall conditions to be published to the agentclusterinstall status
-	err := wait.PollImmediate(time.Second, time.Second*5, func() (bool, error) {
-		if !builder.Exists() {
-			return false, fmt.Errorf("agentclusterinstall object %s doesn't exist in namespace %s",
-				builder.Definition.Name, builder.Definition.Namespace)
-		}
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, time.Second*5, true, func(ctx context.Context) (bool, error) {
+			if !builder.Exists() {
+				return false, fmt.Errorf("agentclusterinstall object %s doesn't exist in namespace %s",
+					builder.Definition.Name, builder.Definition.Namespace)
+			}
 
-		if len(builder.Object.Status.Conditions) > 0 {
-			return true, nil
-		}
+			if len(builder.Object.Status.Conditions) > 0 {
+				return true, nil
+			}
 
-		return false, nil
-	})
+			return false, nil
+		})
 
 	if err != nil {
 		return nil, fmt.Errorf("error while waiting for conditions to be published: %w", err)

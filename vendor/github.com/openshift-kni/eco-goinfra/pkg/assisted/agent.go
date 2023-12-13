@@ -189,15 +189,16 @@ func (builder *agentBuilder) WaitForState(state string, timeout time.Duration) (
 
 	// Polls every retryInterval to determine if agent is in desired state.
 	var err error
-	err = wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		builder.Object, err = builder.Get()
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
 
-		if err != nil {
-			return false, nil
-		}
+			if err != nil {
+				return false, nil
+			}
 
-		return builder.Object.Status.DebugInfo.State == state, nil
-	})
+			return builder.Object.Status.DebugInfo.State == state, nil
+		})
 
 	if err == nil {
 		return builder, nil
@@ -217,15 +218,16 @@ func (builder *agentBuilder) WaitForStateInfo(stateInfo string, timeout time.Dur
 
 	// Polls every retryInterval to determine if agent is in desired state.
 	var err error
-	err = wait.PollImmediate(retryInterval, timeout, func() (bool, error) {
-		builder.Object, err = builder.Get()
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
 
-		if err != nil {
-			return false, nil
-		}
+			if err != nil {
+				return false, nil
+			}
 
-		return builder.Object.Status.DebugInfo.StateInfo == stateInfo, nil
-	})
+			return builder.Object.Status.DebugInfo.StateInfo == stateInfo, nil
+		})
 
 	if err == nil {
 		return builder, nil
@@ -327,27 +329,27 @@ func (builder *agentBuilder) Exists() bool {
 }
 
 // Delete removes an agent from the cluster.
-func (builder *agentBuilder) Delete() (*agentBuilder, error) {
+func (builder *agentBuilder) Delete() error {
 	if valid, err := builder.validate(); !valid {
-		return builder, err
+		return err
 	}
 
 	glog.V(100).Infof("Deleting the agent %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		return builder, fmt.Errorf("agent cannot be deleted because it does not exist")
+		return fmt.Errorf("agent cannot be deleted because it does not exist")
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
 
 	if err != nil {
-		return builder, fmt.Errorf("cannot delete agent: %w", err)
+		return fmt.Errorf("cannot delete agent: %w", err)
 	}
 
 	builder.Object = nil
 
-	return builder, nil
+	return nil
 }
 
 // validate will check that the builder and builder definition are properly initialized before

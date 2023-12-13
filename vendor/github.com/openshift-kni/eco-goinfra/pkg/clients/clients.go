@@ -56,12 +56,14 @@ import (
 
 	nvidiagpuv1 "github.com/NVIDIA/gpu-operator/api/v1"
 	grafanaV4V1Alpha1 "github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
+	multinetpolicyclientv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1beta1"
 	cguapiv1alpha1 "github.com/openshift-kni/cluster-group-upgrades-operator/api/v1alpha1"
 	machinev1beta1client "github.com/openshift/client-go/machine/clientset/versioned/typed/machine/v1beta1"
 	operatorv1alpha1 "github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1alpha1"
 	nfdv1 "github.com/openshift/cluster-nfd-operator/api/v1"
 	lsoV1alpha1 "github.com/openshift/local-storage-operator/api/v1alpha1"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
+	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
 )
 
 // Settings provides the struct to talk with relevant API.
@@ -82,6 +84,7 @@ type Settings struct {
 	clientNetAttDefV1.K8sCniCncfIoV1Interface
 	dynamic.Interface
 	olmv1.OperatorsV1Interface
+	multinetpolicyclientv1.K8sCniCncfIoV1beta1Interface
 	PackageManifestInterface clientPkgManifestV1.OperatorsV1Interface
 	operatorv1alpha1.OperatorV1alpha1Interface
 	grafanaV4V1Alpha1.Grafana
@@ -129,6 +132,7 @@ func New(kubeconfig string) *Settings {
 	clientSet.SecurityV1Interface = v1security.NewForConfigOrDie(config)
 	clientSet.OperatorV1alpha1Interface = operatorv1alpha1.NewForConfigOrDie(config)
 	clientSet.MachineV1beta1Interface = machinev1beta1client.NewForConfigOrDie(config)
+	clientSet.K8sCniCncfIoV1beta1Interface = multinetpolicyclientv1.NewForConfigOrDie(config)
 	clientSet.Config = config
 
 	crScheme := runtime.NewScheme()
@@ -256,7 +260,11 @@ func SetScheme(crScheme *runtime.Scheme) error {
 	}
 
 	if err := policiesv1beta1.AddToScheme(crScheme); err != nil {
-		panic(err)
+		return err
+	}
+
+	if err := placementrulev1.AddToScheme(crScheme); err != nil {
+		return err
 	}
 
 	return nil

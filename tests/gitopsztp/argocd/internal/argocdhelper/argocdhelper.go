@@ -3,12 +3,12 @@ package argocdhelper
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/openshift-kni/k8sreporter"
 	v1 "k8s.io/api/core/v1"
 
@@ -49,7 +49,7 @@ func SetGitDetailsInArgocd(gitRepo, gitBranch, gitPath, argocdApp string, waitFo
 	if app.Object.Spec.Source.RepoURL == gitRepo &&
 		app.Object.Spec.Source.TargetRevision == gitBranch &&
 		app.Object.Spec.Source.Path == gitPath {
-		log.Println("Provided git details are the already configured details in Argocd. No change required.")
+		glog.V(100).Infof("Provided git details are the already configured details in Argocd. No change required.")
 
 		return nil
 	}
@@ -124,7 +124,7 @@ func DoesGitPathExist(gitURL, gitBranch, gitPath string) bool {
 	)
 
 	// Log the url we are trying
-	log.Printf("Checking if git url '%s' exists\n", url)
+	glog.V(100).Infof("Checking if git url '%s' exists\n", url)
 
 	// Create a custom http.Transport with insecure TLS configuration
 	transport := &http.Transport{
@@ -139,60 +139,61 @@ func DoesGitPathExist(gitURL, gitBranch, gitPath string) bool {
 
 	// Check if we got a valid response
 	if err == nil && resp.StatusCode == 200 {
-		log.Printf("found valid git url for '%s'\n", gitPath)
+		glog.V(100).Infof("found valid git url for '%s'\n", gitPath)
 
 		return true
 	}
 
 	// If we got here then none of the urls could be found.
-	log.Printf("could not find valid url for '%s'\n", gitPath)
+	glog.V(100).Infof("could not find valid url for '%s'\n", gitPath)
 
 	return false
 }
 
 // WaitUntilArgocdChangeIsCompleted is used to wait until Argocd has updated its configuration.
 func WaitUntilArgocdChangeIsCompleted(appName string, syncMustBeValid bool, timeout time.Duration) error {
-	log.Println("Waiting for Argocd change to finish syncing")
+	glog.V(100).Infof("Waiting for Argocd change to finish syncing")
 
-	err := wait.PollImmediate(argocdparams.ArgocdChangeInterval, timeout, func() (bool, error) {
-		log.Println("Checking if argo change is complete...")
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), argocdparams.ArgocdChangeInterval, timeout, true, func(context.Context) (bool, error) {
+			glog.V(100).Infof("Checking if argo change is complete...")
 
-		app, err := argocd.PullApplication(gitopsztpinittools.HubAPIClient, appName, gitopsztpparams.OpenshiftGitops)
-		if err != nil {
-			return false, err
-		}
-
-		if app != nil {
-			// If there are any conditions then it probably means theres a problem
-			// By printing them here we can make diagnosing a failing test easier
-			for index, condition := range app.Object.Status.Conditions {
-				log.Printf("Condition #%d: '%s'\n", index, condition)
+			app, err := argocd.PullApplication(gitopsztpinittools.HubAPIClient, appName, gitopsztpparams.OpenshiftGitops)
+			if err != nil {
+				return false, err
 			}
 
-			// The sync result may also have helpful information in the event of an error
-			if app.Object.Status.OperationState != nil && app.Object.Status.OperationState.SyncResult != nil {
-				for index, resource := range app.Object.Status.OperationState.SyncResult.Resources {
-					if resource != nil {
-						log.Printf("Sync resource #%d: '%s\n", index, resource)
+			if app != nil {
+				// If there are any conditions then it probably means theres a problem
+				// By printing them here we can make diagnosing a failing test easier
+				for index, condition := range app.Object.Status.Conditions {
+					glog.V(100).Infof("Condition #%d: '%s'\n", index, condition)
+				}
+
+				// The sync result may also have helpful information in the event of an error
+				if app.Object.Status.OperationState != nil && app.Object.Status.OperationState.SyncResult != nil {
+					for index, resource := range app.Object.Status.OperationState.SyncResult.Resources {
+						if resource != nil {
+							glog.V(100).Infof("Sync resource #%d: '%s\n", index, resource)
+						}
 					}
 				}
-			}
 
-			// Check if all the git details match
-			if app.Object.Status.Sync.ComparedTo.Source.RepoURL == app.Object.Spec.Source.RepoURL &&
-				app.Object.Status.Sync.ComparedTo.Source.TargetRevision == app.Object.Spec.Source.TargetRevision &&
-				app.Object.Status.Sync.ComparedTo.Source.Path == app.Object.Spec.Source.Path {
-				// If we expect the sync to be successful then we also need to check that the status is 'Synced'
-				if syncMustBeValid {
-					return app.Object.Status.Sync.Status == "Synced", nil
+				// Check if all the git details match
+				if app.Object.Status.Sync.ComparedTo.Source.RepoURL == app.Object.Spec.Source.RepoURL &&
+					app.Object.Status.Sync.ComparedTo.Source.TargetRevision == app.Object.Spec.Source.TargetRevision &&
+					app.Object.Status.Sync.ComparedTo.Source.Path == app.Object.Spec.Source.Path {
+					// If we expect the sync to be successful then we also need to check that the status is 'Synced'
+					if syncMustBeValid {
+						return app.Object.Status.Sync.Status == "Synced", nil
+					}
+
+					return true, nil
 				}
-
-				return true, nil
 			}
-		}
 
-		return false, nil
-	})
+			return false, nil
+		})
 
 	return err
 }
