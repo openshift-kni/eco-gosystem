@@ -1,6 +1,7 @@
 package talmhelper
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/talm/internal/talmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
 )
 
 var (
@@ -399,10 +401,8 @@ func WaitForCguInCondition(
 
 	glog.V(100).Info(msg)
 	// Use a poll to check the cgu condition
-	_ = wait.PollImmediate(
-		talmparams.TalmTestPollInterval,
-		timeout,
-		func() (done bool, err error) {
+	_ = wait.PollUntilContextTimeout(
+		context.TODO(), talmparams.TalmTestPollInterval, timeout, true, func(context.Context) (done bool, err error) {
 			// Get the CGU
 			clusterGroupUpgrade, err := cgu.Pull(client, cguName, namespace)
 			if err != nil {
@@ -484,10 +484,8 @@ func WaitForClusterInProgressInCgu(
 		cguName,
 	)
 
-	err := wait.PollImmediate(
-		15*time.Second,
-		timeout,
-		func() (bool, error) {
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 15*time.Second, timeout, true, func(context.Context) (bool, error) {
 			ok, err := IsClusterInProgressInCgu(client, cguName, clusterName, namespace)
 			if err != nil {
 				return true, err
@@ -603,10 +601,9 @@ func WaitUntilObjectExists(
 	namespace string,
 	getStatus func(client *clients.Settings, objectName string, namespace string) (bool, error)) error {
 	// Wait for it to exist
-	err := wait.PollImmediate(
-		15*time.Second,
-		5*time.Minute,
-		func() (bool, error) {
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 15*time.Second, 5*time.Minute, true,
+		func(context.Context) (bool, error) {
 			status, err := getStatus(client, objectName, namespace)
 
 			// Wait until it definitely exists
@@ -869,7 +866,7 @@ func ApplyPolicyAndCreateAllComponents(
 	policy ocm.PolicyBuilder,
 	policySetName string,
 	placementBindingName string,
-	placementRule string,
+	placementRuleName string,
 	namespace string,
 	clusters []string,
 	clusterSelector metav1.LabelSelector,
@@ -883,8 +880,6 @@ func ApplyPolicyAndCreateAllComponents(
 	// Step 2 - Create the policy set
 	glog.V(100).Info("creating the policyset")
 
-	// TO COMPLETE
-
 	var nonEmptyStringList []policiesv1beta1.NonEmptyString
 	nonEmptyStringList = append(nonEmptyStringList, policiesv1beta1.NonEmptyString(policy.Definition.Name))
 
@@ -895,9 +890,93 @@ func ApplyPolicyAndCreateAllComponents(
 		return err
 	}
 
-	// COMPLETE
+	// Step 3 - Get a placement field
+	glog.V(100).Info("creating the generic placement fields")
+
+	fields := GetPlacementFieldDefinition(clusters, clusterSelector)
+
+	// Step 4 - Create the placement rule
+	glog.V(100).Info("creating the placementrule")
+
+	placementRule := GetPlacementRuleDefinition(placementRuleName, namespace, fields)
+
+	_, err = placementRule.Create()
+	if err != nil {
+		return err
+	}
+
+	// Step 5 - Create the placement binding
+	glog.V(100).Info("creating the placementbinding")
+
+	placementBinding := GetPlacementBindingDefinition(
+		placementBindingName,
+		policySetName,
+		placementRuleName,
+		namespace,
+	)
+
+	_, err = placementBinding.Create()
+	if err != nil {
+		return err
+	}
 
 	return nil
+}
+
+// GetPlacementBindingDefinition is used to get a placement binding to use with a cgu.
+func GetPlacementBindingDefinition(
+	placementBindingName string,
+	policySetName string,
+	placementRuleName string,
+	namespace string) ocm.PlacementBindingBuilder {
+	customResource := ocm.PlacementBindingBuilder{
+		Definition: &policiesv1.PlacementBinding{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "PlacementBinding",
+				APIVersion: policiesv1.SchemeGroupVersion.Version,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      placementBindingName,
+				Namespace: namespace,
+			},
+			PlacementRef: policiesv1.PlacementSubject{
+				Name:     placementRuleName,
+				APIGroup: "apps.open-cluster-management.io",
+				Kind:     "PlacementRule",
+			},
+			Subjects: []policiesv1.Subject{
+				{
+					Name:     policySetName,
+					APIGroup: "policy.open-cluster-management.io",
+					Kind:     "PolicySet",
+				},
+			}},
+	}
+
+	return customResource
+}
+
+// GetPlacementRuleDefinition is used to get a placement rule to use with a cgu.
+func GetPlacementRuleDefinition(
+	placementRuleName string,
+	namespace string,
+	placementFields placementrulev1.GenericPlacementFields) ocm.PlacementRuleBuilder {
+	customResource := ocm.PlacementRuleBuilder{
+		Definition: &placementrulev1.PlacementRule{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "PlacementRule",
+				APIVersion: placementrulev1.SchemeGroupVersion.Version,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      placementRuleName,
+				Namespace: namespace,
+			},
+			Spec: placementrulev1.PlacementRuleSpec{
+				GenericPlacementFields: placementFields,
+			}},
+	}
+
+	return customResource
 }
 
 // GetPolicySetDefinition is used to get a policy set for the provided policies.
@@ -919,6 +998,24 @@ func GetPolicySetDefinition(
 				Policies: policyList,
 			},
 		},
+	}
+
+	return customResource
+}
+
+// GetPlacementFieldDefinition is used to get a generic placement field for use with a placement rule.
+func GetPlacementFieldDefinition(
+	clusters []string,
+	clusterSelector metav1.LabelSelector) placementrulev1.GenericPlacementFields {
+	// Build the placement object we need in lieu of a flat string list
+	clustersPlacementField := []placementrulev1.GenericClusterReference{}
+	for _, cluster := range clusters {
+		clustersPlacementField = append(clustersPlacementField, placementrulev1.GenericClusterReference{Name: cluster})
+	}
+
+	customResource := placementrulev1.GenericPlacementFields{
+		Clusters:        clustersPlacementField,
+		ClusterSelector: &clusterSelector,
 	}
 
 	return customResource
