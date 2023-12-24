@@ -242,16 +242,17 @@ func GetZtpVersionFromArgocd(client *clients.Settings, name string, namespace st
 // IsPodHealthy returns true if a given pod is healthy, otherwise false.
 func IsPodHealthy(pod *pod.Builder) bool {
 	if pod.Object.Status.Phase == v1.PodRunning {
+		// Check if running pod is ready
 		if !isPodInCondition(pod, v1.PodReady) {
 			glog.Fatalf("pod condition is not Ready. Message: %s", pod.Object.Status.Message)
 
 			return false
-		} else if pod.Object.Status.Phase != v1.PodSucceeded {
-			// Pod is not running or completed.
-			glog.Fatalf("pod phase is %s. Message: %s", pod.Object.Status.Phase, pod.Object.Status.Message)
-
-			return false
 		}
+	} else if pod.Object.Status.Phase != v1.PodSucceeded {
+		// Pod is not running or completed.
+		glog.Fatalf("pod phase is %s. Message: %s", pod.Object.Status.Phase, pod.Object.Status.Message)
+
+		return false
 	}
 
 	return true

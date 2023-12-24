@@ -21,11 +21,11 @@ var (
 
 // talm related vars.
 const (
-	HubKubeEnvKey                = "KUBECONFIG_HUB"
+	HubKubeEnvKey                = "KUBECONFIG"
 	TalmUpdatedConditionsVersion = "4.12"
 	OpenshiftOperatorNamespace   = "openshift-operators"
 	OperatorHubTalmNamespace     = "topology-aware-lifecycle-manager"
-	Spoke1KubeEnvKey             = "KUBECONFIG"
+	Spoke1KubeEnvKey             = "KUBECONFIG_SPOKE1"
 	Spoke2KubeEnvKey             = "KUBECONFIG_SPOKE2"
 	TalmContainerName            = "manager"
 	TalmDefaultReconcileTime     = 5 * time.Minute

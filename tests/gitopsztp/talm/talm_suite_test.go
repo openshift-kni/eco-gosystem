@@ -1,6 +1,7 @@
 package talm
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -44,6 +45,8 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	fmt.Println("AfterSuite")
+
 	// Deleting the namespace after the suite finishes ensures all the CGUs created are deleted
 	err := talmhelper.DeleteTalmTestNamespace(false)
 	Expect(err).ToNot(HaveOccurred())

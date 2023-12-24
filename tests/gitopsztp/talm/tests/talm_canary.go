@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
@@ -33,9 +34,11 @@ var _ = Describe("Talm Canary Tests", Ordered, Label("talmcanary"), func() {
 			Skip(fmt.Sprintf("error occurred validating required clusters are present: %s", err.Error()))
 		}
 
+		glog.V(100).Info("gitopsztpinittools.SpokeAPIClient.Name", gitopsztpinittools.SpokeAPIClient.Name)
 		// Cleanup state to make it consistent
 		for _, client := range clusterList {
 
+			fmt.Printf("working on cluster : %s", client.Name)
 			// Cleanup everything
 			errList := talmhelper.CleanupTestResourcesOnClients(
 				[]*clients.Settings{
@@ -50,6 +53,7 @@ var _ = Describe("Talm Canary Tests", Ordered, Label("talmcanary"), func() {
 				talmhelper.CatalogSourceName)
 			Expect(errList).To(BeEmpty())
 
+			fmt.Println("creating namespace")
 			// Create namespace
 			_, err := namespace.NewBuilder(client, talmhelper.Namespace).Create()
 			Expect(err).ToNot(HaveOccurred())
