@@ -38,7 +38,6 @@ import (
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 
 	clientSrIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/pkg/client/clientset/versioned/typed/sriovnetwork/v1"
-	metalLbOperatorV1Beta1 "github.com/metallb/metallb-operator/api/v1beta1"
 
 	clientMachineConfigV1 "github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/typed/machineconfiguration.openshift.io/v1"
 
@@ -52,16 +51,18 @@ import (
 	moduleV1Beta1 "github.com/rh-ecosystem-edge/kernel-module-management/api/v1beta1"
 	"k8s.io/client-go/kubernetes/scheme"
 	coreV1Client "k8s.io/client-go/kubernetes/typed/core/v1"
+	storageV1Client "k8s.io/client-go/kubernetes/typed/storage/v1"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 
 	nvidiagpuv1 "github.com/NVIDIA/gpu-operator/api/v1"
 	grafanaV4V1Alpha1 "github.com/grafana-operator/grafana-operator/v4/api/integreatly/v1alpha1"
 	multinetpolicyclientv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1beta1"
-	cguapiv1alpha1 "github.com/openshift-kni/cluster-group-upgrades-operator/api/v1alpha1"
+	cguapiv1alpha1 "github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	machinev1beta1client "github.com/openshift/client-go/machine/clientset/versioned/typed/machine/v1beta1"
 	operatorv1alpha1 "github.com/openshift/client-go/operator/clientset/versioned/typed/operator/v1alpha1"
 	nfdv1 "github.com/openshift/cluster-nfd-operator/api/v1"
 	lsoV1alpha1 "github.com/openshift/local-storage-operator/api/v1alpha1"
+	mcmV1Beta1 "github.com/rh-ecosystem-edge/kernel-module-management/api-hub/v1beta1"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
 )
@@ -90,6 +91,7 @@ type Settings struct {
 	grafanaV4V1Alpha1.Grafana
 	LocalVolumeInterface lsoV1alpha1.LocalVolumeSet
 	machinev1beta1client.MachineV1beta1Interface
+	storageV1Client.StorageV1Interface
 }
 
 // New returns a *Settings with the given kubeconfig.
@@ -133,6 +135,7 @@ func New(kubeconfig string) *Settings {
 	clientSet.OperatorV1alpha1Interface = operatorv1alpha1.NewForConfigOrDie(config)
 	clientSet.MachineV1beta1Interface = machinev1beta1client.NewForConfigOrDie(config)
 	clientSet.K8sCniCncfIoV1beta1Interface = multinetpolicyclientv1.NewForConfigOrDie(config)
+	clientSet.StorageV1Interface = storageV1Client.NewForConfigOrDie(config)
 	clientSet.Config = config
 
 	crScheme := runtime.NewScheme()
@@ -183,10 +186,6 @@ func SetScheme(crScheme *runtime.Scheme) error {
 		return err
 	}
 
-	if err := metalLbOperatorV1Beta1.AddToScheme(crScheme); err != nil {
-		return err
-	}
-
 	if err := performanceV2.AddToScheme(crScheme); err != nil {
 		return err
 	}
@@ -220,6 +219,10 @@ func SetScheme(crScheme *runtime.Scheme) error {
 	}
 
 	if err := moduleV1Beta1.AddToScheme(crScheme); err != nil {
+		return err
+	}
+
+	if err := mcmV1Beta1.AddToScheme(crScheme); err != nil {
 		return err
 	}
 
