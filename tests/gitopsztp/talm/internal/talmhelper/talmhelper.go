@@ -45,7 +45,7 @@ var (
 // talm consts.
 const (
 	CguName                         string = "talm-cgu"
-	Namespace                       string = "talm-namespace"
+	Namespace                       string = "ztp-install"
 	PlacementBindingName            string = "talm-placement-binding"
 	PlacementRule                   string = "talm-placement-rule"
 	PolicyName                      string = "talm-policy"
@@ -66,7 +66,7 @@ const (
 func VerifyTalmIsInstalled() error {
 	// Check for talm pods
 	talmPods, err := pod.List(gitopsztpinittools.HubAPIClient,
-		talmparams.TalmOperatorNamespace,
+		talmparams.OpenshiftOperatorNamespace,
 		metav1.ListOptions{
 			LabelSelector: talmparams.TalmPodLabelSelector})
 	if err != nil {

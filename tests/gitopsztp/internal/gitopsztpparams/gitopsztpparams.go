@@ -2,9 +2,9 @@ package gitopsztpparams
 
 const (
 	// HubKubeEnvKey is the hub's kubeconfig env var.
-	HubKubeEnvKey string = "KUBECONFIG_HUB"
+	HubKubeEnvKey string = "KUBECONFIG"
 	//  SpokeKubeEnvKey is the spoke's kubeconfig env var.
-	SpokeKubeEnvKey string = "KUBECONFIG"
+	SpokeKubeEnvKey string = "KUBECONFIG_SPOKE1"
 	// AcmOperatorName operator name of ACM.
 	AcmOperatorName string = "advanced-cluster-management"
 	// AcmOperatorNamespace ACM's namespace.
