@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/cluster-group-upgrades-operator/api/v1alpha1"
+	"github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	"github.com/openshift-kni/eco-goinfra/pkg/cgu"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
