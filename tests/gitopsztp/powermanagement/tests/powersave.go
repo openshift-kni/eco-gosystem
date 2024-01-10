@@ -13,18 +13,15 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
 	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
 	"github.com/openshift-kni/eco-goinfra/pkg/nto" //nolint:misspell
-
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/powermanagement/internal/powermanagementhelper"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/powermanagement/internal/powermanagementparams"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cmd"
-
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/openshift/cluster-node-tuning-operator/pkg/performanceprofile/controller/performanceprofile/components"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, func() {
@@ -107,7 +104,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 	// OCP-54572 - Enable powersave at node level and then enable performance at node level
 	It("Enable powersave at node level and then enable performance at node level", func() {
 		By("Patching the performance profile with the workload hints")
-		err := setPowerMode(perfProfile, true, false, true)
+		err := powermanagementhelper.SetPowerMode(perfProfile, true, false, true)
 		Expect(err).ToNot(HaveOccurred(), "Unable to set power mode")
 
 		cmdline, err := cmd.ExecCmd([]string{"chroot", "rootfs", "cat", "/proc/cmdline"}, snoNode.Name)
@@ -133,7 +130,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		memLimit := resource.MustParse("100Mi")
 
 		By("Patching the performance profile with the workload hints")
-		err := setPowerMode(perfProfile, true, false, true)
+		err := powermanagementhelper.SetPowerMode(perfProfile, true, false, true)
 		Expect(err).ToNot(HaveOccurred(), "Unable to set power mode")
 
 		By("Define test pod")
@@ -141,7 +138,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		testpod := powermanagementhelper.DefineQoSTestPod(*ns, snoNode.Name, cpuLimit.String(),
 			cpuLimit.String(), memLimit.String(), memLimit.String())
 		testpod.Definition.Annotations = testPodAnnotations
-		runtimeClass := getComponentName(perfProfile.Definition.Name, components.ComponentNamePrefix)
+		runtimeClass := powermanagementhelper.GetComponentName(perfProfile.Definition.Name, components.ComponentNamePrefix)
 		testpod.Definition.Spec.RuntimeClassName = &runtimeClass
 
 		By("Create test pod")
@@ -168,7 +165,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		Expect(err).ToNot(HaveOccurred())
 
 		targetCpus := cpusUsed.List()
-		err = checkCPUGovernorsAndResumeLatency(targetCpus, snoNode.Name, "n/a", "performance")
+		err = powermanagementhelper.CheckCPUGovernorsAndResumeLatency(targetCpus, snoNode.Name, "n/a", "performance")
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify the rest of cpus have default power setting")
@@ -178,7 +175,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 
 		otherCPUs := cpus.Difference(cpusUsed)
 		// Verify cpus not assigned to the pod have default power settings.
-		err = checkCPUGovernorsAndResumeLatency(otherCPUs.List(), snoNode.Name, "0", "performance")
+		err = powermanagementhelper.CheckCPUGovernorsAndResumeLatency(otherCPUs.List(), snoNode.Name, "0", "performance")
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Delete the pod")
@@ -186,64 +183,41 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify after pod was deleted cpus assigned to container have default powersave settings")
-		err = checkCPUGovernorsAndResumeLatency(targetCpus, snoNode.Name, "0", "performance")
+		err = powermanagementhelper.CheckCPUGovernorsAndResumeLatency(targetCpus, snoNode.Name, "0", "performance")
 		Expect(err).ToNot(HaveOccurred())
 
 	})
 
+	Context("Collect power usage metrics", func() {
+
+		When("ipmitool exists", func() {
+
+			var (
+				samplingInterval time.Duration
+				powerState       string
+			)
+
+			BeforeAll(func() {
+				if !powermanagementhelper.IsIpmitoolExist(snoNode.Name) {
+					Skip("ipmitool is not installed on test executor. Skip retrieving power metrics.")
+				}
+			})
+
+			BeforeEach(func() {
+				metricSamplingInterval := powermanagementhelper.GetEnv(powermanagementparams.EnvMetricSamplingInterval,
+					powermanagementparams.DefaultRanMetricSamplingInterval)
+				samplingInterval, err = time.ParseDuration(metricSamplingInterval)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Determine power state to be used as a tag for the metric
+				powerState, err = powermanagementhelper.GetPowerState(perfProfile)
+				Expect(err).ToNot(HaveOccurred())
+
+				// complete smalingInterval and powerState usage
+				fmt.Println(samplingInterval, powerState)
+			})
+
+		})
+	})
+
 })
-
-// setPowerMode updates the performance profile with the given workload hints, and waits for the mcp update.
-func setPowerMode(perfProfile *nto.Builder, perPodPowerManagement, highPowerConsumption, realTime bool) error {
-	glog.V(100).Infof("Set powersave mode on performance profile")
-
-	perfProfile.Definition.Spec.WorkloadHints = &performancev2.WorkloadHints{
-		PerPodPowerManagement: ptr.To[bool](perPodPowerManagement),
-		HighPowerConsumption:  ptr.To[bool](highPowerConsumption),
-		RealTime:              ptr.To[bool](realTime),
-	}
-
-	_, err := perfProfile.Update(true)
-	if err != nil {
-		return err
-	}
-
-	mcp, err := mco.Pull(gitopsztpinittools.HubAPIClient, "master")
-	Expect(err).ToNot(HaveOccurred())
-
-	err = mcp.WaitForUpdate(powermanagementparams.Timeout)
-
-	return err
-}
-
-// getComponentName returns the component name for the specific performance profile.
-func getComponentName(profileName string, prefix string) string {
-	return fmt.Sprintf("%s-%s", prefix, profileName)
-}
-
-// checkCPUGovernorsAndResumeLatency  Checks power and latency settings of the cpus.
-func checkCPUGovernorsAndResumeLatency(cpus []int, nodeName, pmQos, governor string) error {
-	for _, cpu := range cpus {
-		command := []string{"/bin/bash", "-c", fmt.Sprintf(
-			"cat /sys/devices/system/cpu/cpu%d/power/pm_qos_resume_latency_us", cpu)}
-
-		output, err := cmd.ExecCmd(command, nodeName)
-		if err != nil {
-			return err
-		}
-
-		Expect(strings.Trim(output, "\r")).To(Equal(pmQos))
-
-		command = []string{"/bin/bash", "-c", fmt.Sprintf(
-			"cat /sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor", cpu)}
-
-		output, err = cmd.ExecCmd(command, nodeName)
-		if err != nil {
-			return err
-		}
-
-		Expect(strings.Trim(output, "\r")).To(Equal(governor))
-	}
-
-	return nil
-}

@@ -13,6 +13,13 @@ const (
 	RanPowerMetricMedianInstantPower      = "ranmetrics_power_median_instantaneous"
 )
 
+// Environment variables used.
+const (
+	EnvMetricSamplingInterval = "RAN_METRIC_SAMPLING_INTERVAL"
+	EnvNoWorkloadDuration     = "RAN_NO_WORKLOAD_DURATION"
+	EnvWorkloadDuration       = "RAN_WORKLOAD_DURATION"
+)
+
 // Power State Configurations.
 const (
 	PowerSavingMode     = "powersaving"
