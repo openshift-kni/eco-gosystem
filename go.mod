@@ -8,7 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20231216054307-28180628cf50
-	github.com/openshift-kni/eco-goinfra v0.0.0-20240108141956-745d670e3113
+	github.com/openshift-kni/eco-goinfra v0.0.0-20240109203119-975bf2617254
 	github.com/openshift-kni/k8sreporter v1.0.5
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20231225123609-e63d2c9626fe
 	gonum.org/v1/gonum v0.14.0
@@ -97,6 +97,7 @@ require (
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0 // indirect
 	github.com/k8snetworkplumbingwg/sriov-network-operator v0.0.0-20201204053545-49045c36efb9 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/metal3-io/baremetal-operator/apis v0.4.1 // indirect
 	github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.2.0 // indirect
@@ -108,7 +109,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20231116153922-80c6e01df02e // indirect
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible // indirect
-	github.com/openshift/assisted-service v1.0.10-0.20230830164851-6573b5d7021d // indirect
 	github.com/openshift/assisted-service/api v0.0.0 // indirect
 	github.com/openshift/assisted-service/models v0.0.0 // indirect
 	github.com/openshift/client-go v0.0.1 // indirect
@@ -135,7 +135,6 @@ require (
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.6-0.20210604193023-d5e0c0615ace // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
-	github.com/thoas/go-funk v0.9.3 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
 	go4.org v0.0.0-20201209231011-d4a079459e60 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
@@ -174,9 +173,9 @@ require (
 
 replace (
 	github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20231221010717-5042b58e87db // release-4.15
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20231117205818-971e4ba78c9a // release-4.14
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20231115210901-4c4a0a24f2fc // release-4.15
 	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20230907160625-4e1a1e59cef0 // release-4.14
-	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20230907160625-4e1a1e59cef0 // release-4.14
+	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20230906121258-6d85fb16f8dd // release-4.15
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20230807132528-be5346fb33cb // release-4.14
 	github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20231114114555-1e657ecbea8f // relase-4.14
 	github.com/openshift/installer => github.com/openshift/installer v0.0.0-20230725173033-8cd8f79a20b3 // release-4.14

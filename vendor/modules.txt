@@ -320,6 +320,8 @@ github.com/kelseyhightower/envconfig
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-sqlite3 v2.0.3+incompatible
+## explicit
 # github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0
 ## explicit; go 1.19
 github.com/matttproud/golang_protobuf_extensions/v2/pbutil
@@ -399,7 +401,7 @@ github.com/onsi/gomega/types
 ## explicit; go 1.20
 github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades
 github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1
-# github.com/openshift-kni/eco-goinfra v0.0.0-20240108141956-745d670e3113
+# github.com/openshift-kni/eco-goinfra v0.0.0-20240109203119-975bf2617254
 ## explicit; go 1.20
 github.com/openshift-kni/eco-goinfra/pkg/argocd
 github.com/openshift-kni/eco-goinfra/pkg/argocd/argocdtypes
@@ -426,7 +428,7 @@ github.com/openshift-kni/eco-goinfra/pkg/statefulset
 # github.com/openshift-kni/k8sreporter v1.0.5
 ## explicit; go 1.20
 github.com/openshift-kni/k8sreporter
-# github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible => github.com/openshift/api v0.0.0-20231117205818-971e4ba78c9a
+# github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible => github.com/openshift/api v0.0.0-20231115210901-4c4a0a24f2fc
 ## explicit; go 1.20
 github.com/openshift/api
 github.com/openshift/api/apiserver
@@ -496,15 +498,12 @@ github.com/openshift/api/template
 github.com/openshift/api/template/v1
 github.com/openshift/api/user
 github.com/openshift/api/user/v1
-# github.com/openshift/assisted-service v1.0.10-0.20230830164851-6573b5d7021d
-## explicit; go 1.18
-github.com/openshift/assisted-service/pkg/validations
 # github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20230907160625-4e1a1e59cef0
 ## explicit; go 1.18
 github.com/openshift/assisted-service/api/common
 github.com/openshift/assisted-service/api/hiveextension/v1beta1
 github.com/openshift/assisted-service/api/v1beta1
-# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20230907160625-4e1a1e59cef0
+# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20230906121258-6d85fb16f8dd
 ## explicit; go 1.18
 github.com/openshift/assisted-service/models
 # github.com/openshift/client-go v0.0.1 => github.com/openshift/client-go v0.0.0-20230807132528-be5346fb33cb
@@ -692,9 +691,6 @@ github.com/spf13/pflag
 # github.com/stoewer/go-strcase v1.2.0
 ## explicit; go 1.11
 github.com/stoewer/go-strcase
-# github.com/thoas/go-funk v0.9.3
-## explicit; go 1.13
-github.com/thoas/go-funk
 # github.com/vincent-petithory/dataurl v1.0.0
 ## explicit
 github.com/vincent-petithory/dataurl
@@ -1435,9 +1431,9 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
 # github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20231221010717-5042b58e87db
-# github.com/openshift/api => github.com/openshift/api v0.0.0-20231117205818-971e4ba78c9a
+# github.com/openshift/api => github.com/openshift/api v0.0.0-20231115210901-4c4a0a24f2fc
 # github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20230907160625-4e1a1e59cef0
-# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20230907160625-4e1a1e59cef0
+# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20230906121258-6d85fb16f8dd
 # github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20230807132528-be5346fb33cb
 # github.com/openshift/cluster-node-tuning-operator => github.com/openshift/cluster-node-tuning-operator v0.0.0-20231114114555-1e657ecbea8f
 # github.com/openshift/installer => github.com/openshift/installer v0.0.0-20230725173033-8cd8f79a20b3
