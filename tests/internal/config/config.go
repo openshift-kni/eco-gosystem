@@ -34,6 +34,9 @@ type GeneralConfig struct {
 	ControlPlaneLabelMap   map[string]string
 	SriovOperatorNamespace string `yaml:"sriov_operator_namespace" envconfig:"ECO_SYSTEM_TESTS_SRIOV_OPERATOR_NAMESPACE"`
 	IpmiToolImage          string `yaml:"ipmitool_image" envconfig:"ECO_SYSTEM_TESTS_IPMITOOL_IMAGE"`
+	BmcHosts               string `envconfig:"BMC_HOSTS"`
+	BmcUser                string `yaml:"bmc_user" envconfig:"BMC_USER"`
+	BmcPassword            string `yaml:"bmc_password" envconfig:"BMC_PASSWORD"`
 }
 
 // NewConfig returns instance of GeneralConfig config type.
