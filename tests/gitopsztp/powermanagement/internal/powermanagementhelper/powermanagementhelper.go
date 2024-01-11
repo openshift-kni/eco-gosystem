@@ -1,23 +1,76 @@
 package powermanagementhelper
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/daemonset"
+	"github.com/openshift-kni/eco-goinfra/pkg/mco"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
 	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
 	"github.com/openshift-kni/eco-goinfra/pkg/nto" //nolint:misspell
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/internal/gitopsztpinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/gitopsztp/powermanagement/internal/powermanagementparams"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/cmd"
+	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 
 	. "github.com/onsi/gomega"
 )
+
+// Config type keeps general configuration.
+type Config struct {
+	General struct {
+		ReportDirAbsPath              string `yaml:"report" envconfig:"REPORT_DIR_NAME"`
+		CnfNodeLabel                  string `yaml:"cnf_worker_label" envconfig:"ROLE_WORKER_CNF"`
+		DumpFailedTestsReportLocation string `envconfig:"REPORTER_ERROR_OUTPUT"`
+		PolarionReport                bool   `yaml:"polarion_report" envconfig:"POLARION_REPORT"`
+	} `yaml:"general"`
+	Network struct {
+		TestContainerImage      string `yaml:"test_container_image" envconfig:"NETWORK_TEST_CONTAINER_IMAGE"`
+		SriovInterfaces         string `envconfig:"CNF_INTERFACES_LIST"`
+		MetalLBAddressPoolIP    string `envconfig:"METALLB_ADDR_LIST"`
+		MetalLBSwitchInterfaces string `envconfig:"METALLB_SWITCH_INTERFACES"`
+		MetalLBVlanIDs          string `envconfig:"METALLB_VLANS"`
+		FrrImage                string `yaml:"frr_image" envconfig:"FRR_IMAGE"`
+		SwitchUser              string `envconfig:"SWITCH_USER"`
+		SwitchPass              string `envconfig:"SWITCH_PASS"`
+		SwitchIP                string `envconfig:"SWITCH_IP"`
+		SwitchInterfaces        string `envconfig:"SWITCH_INTERFACES"`
+	} `yaml:"network"`
+	Ran struct {
+		CnfTestImage              string   `yaml:"cnf_test_image" envconfig:"CNF_TEST_IMAGE"`
+		StressngTestImage         string   `yaml:"stressng_test_image" envconfig:"STRESSNG_TEST_IMAGE"`
+		OslatTestImage            string   `yaml:"oslat_test_image" envconfig:"OSLAT_TEST_IMAGE"`
+		ProcessExporterImage      string   `yaml:"process_exporter_image" envconfig:"PROCESS_EXPORTER_IMAGE"`
+		ProcessExporterConfigsDir string   `yaml:"process_exporter_resources"`
+		BmcHosts                  string   `envconfig:"BMC_HOSTS"`
+		BmcUser                   string   `yaml:"bmc_user" envconfig:"BMC_USER"`
+		BmcPassword               string   `yaml:"bmc_password" envconfig:"BMC_PASSWORD"`
+		PduAddr                   string   `envconfig:"PDU_ADDR"`
+		PduSocket                 string   `envconfig:"PDU_SOCKET"`
+		RanEventTestDebug         string   `envconfig:"RAN_EVENT_TEST_DEBUG"`
+		ConsumerImage             string   `yaml:"consumer_image" envconfig:"CLOUD_EVENT_CONSUMER_IMAGE"`
+		BmerTestDebug             string   `envconfig:"BMER_TEST_DEBUG"`
+		BmerConfigsDir            string   `yaml:"bmer_consumer_manifests"`
+		PtpConfigsDir             string   `yaml:"ptp_consumer_manifests"`
+		KubeconfigHub             string   `envconfig:"KUBECONFIG_HUB"`
+		OcpUpgradeUpstreamURL     string   `yaml:"ocp_upgrade_upstream_url" envconfig:"OCP_UPGRADE_UPSTREAM_URL"`
+		TalmPrecachePolicies      []string `envconfig:"TALM_PRECACHE_POLICIES" yaml:"talm_precache_policies"`
+		KubeconfigSpoke2          string   `envconfig:"KUBECONFIG_SPOKE2"`
+		ZtpGitRepo                string   `envconfig:"ZTP_GIT_REPO"`
+		ZtpGitBranch              string   `envconfig:"ZTP_GIT_BRANCH"`
+		ZtpGitDir                 string   `envconfig:"ZTP_GIT_DIR"`
+	} `yaml:"ran"`
+}
 
 // DeployProcessExporter deploys process exporter and returns the daemonset and error if any.
 func DeployProcessExporter() *daemonset.Builder {
@@ -119,4 +172,103 @@ func RedefineContainerResources(
 	}
 
 	return pod
+}
+
+// SetPowerMode updates the performance profile with the given workload hints, and waits for the mcp update.
+func SetPowerMode(perfProfile *nto.Builder, perPodPowerManagement, highPowerConsumption, realTime bool) error {
+	glog.V(100).Infof("Set powersave mode on performance profile")
+
+	perfProfile.Definition.Spec.WorkloadHints = &performancev2.WorkloadHints{
+		PerPodPowerManagement: ptr.To[bool](perPodPowerManagement),
+		HighPowerConsumption:  ptr.To[bool](highPowerConsumption),
+		RealTime:              ptr.To[bool](realTime),
+	}
+
+	_, err := perfProfile.Update(true)
+	if err != nil {
+		return err
+	}
+
+	mcp, err := mco.Pull(gitopsztpinittools.HubAPIClient, "master")
+	Expect(err).ToNot(HaveOccurred())
+
+	err = mcp.WaitForUpdate(powermanagementparams.Timeout)
+
+	return err
+}
+
+// GetComponentName returns the component name for the specific performance profile.
+func GetComponentName(profileName string, prefix string) string {
+	return fmt.Sprintf("%s-%s", prefix, profileName)
+}
+
+// CheckCPUGovernorsAndResumeLatency  Checks power and latency settings of the cpus.
+func CheckCPUGovernorsAndResumeLatency(cpus []int, nodeName, pmQos, governor string) error {
+	for _, cpu := range cpus {
+		command := []string{"/bin/bash", "-c", fmt.Sprintf(
+			"cat /sys/devices/system/cpu/cpu%d/power/pm_qos_resume_latency_us", cpu)}
+
+		output, err := cmd.ExecCmd(command, nodeName)
+		if err != nil {
+			return err
+		}
+
+		Expect(strings.Trim(output, "\r")).To(Equal(pmQos))
+
+		command = []string{"/bin/bash", "-c", fmt.Sprintf(
+			"cat /sys/devices/system/cpu/cpu%d/cpufreq/scaling_governor", cpu)}
+
+		output, err = cmd.ExecCmd(command, nodeName)
+		if err != nil {
+			return err
+		}
+
+		Expect(strings.Trim(output, "\r")).To(Equal(governor))
+	}
+
+	return nil
+}
+
+// IsIpmitoolExist returns true if ipmitool is installed on test executor, otherwise false.
+func IsIpmitoolExist(nodeName string) bool {
+	_, err := cmd.ExecCmd([]string{"which", "ipmitool"}, nodeName)
+
+	return err == nil
+}
+
+// GetEnv retrieves the value of the environment variable named by the key.
+func GetEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+
+	return fallback
+}
+
+// GetPowerState determines the power state from the workloadHints object of the PerformanceProfile.
+func GetPowerState(perfProfile *nto.Builder) (powerState string, err error) {
+	workloadHints := perfProfile.Definition.Spec.WorkloadHints
+
+	if workloadHints == nil {
+		// No workloadHints object -> default is Performance mode
+		powerState = powermanagementparams.PerformanceMode
+	} else {
+		realTime := *workloadHints.RealTime
+		highPowerConsumption := *workloadHints.HighPowerConsumption
+		perPodPowerManagement := *workloadHints.PerPodPowerManagement
+
+		switch {
+		case realTime && !highPowerConsumption && !perPodPowerManagement:
+			powerState = powermanagementparams.PerformanceMode
+		case realTime && highPowerConsumption && !perPodPowerManagement:
+			powerState = powermanagementparams.HighPerformanceMode
+		case realTime && !highPowerConsumption && perPodPowerManagement:
+			powerState = powermanagementparams.PowerSavingMode
+		default:
+			return "", errors.New("unknown workloadHints power state configuration")
+		}
+
+	}
+
+	return powerState, nil
 }
