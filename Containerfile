@@ -8,7 +8,7 @@ LABEL go.version=${GO_VER}
 LABEL ginkgo.version=${GINKGO_VER}
 
 ENV PATH "$PATH:/usr/local/go/bin:/root/go/bin"
-RUN dnf install -y tar gcc make python36 python3-jinja2 jq && \
+RUN dnf install -y tar gcc make python36 python3-jinja2 jq iputils && \
     dnf clean metadata packages && \
     arch=$(arch | sed s/aarch64/arm64/ \ 
                 | sed s/x86_64/amd64/) && \
