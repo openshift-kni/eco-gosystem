@@ -212,9 +212,21 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 				// Determine power state to be used as a tag for the metric
 				powerState, err = powermanagementhelper.GetPowerState(perfProfile)
 				Expect(err).ToNot(HaveOccurred())
+			})
 
-				// complete smalingInterval and powerState usage
-				fmt.Println(samplingInterval, powerState)
+			It("Check power usage for 'noworkload' scenario", func() {
+				noWorkloadDuration := powermanagementhelper.GetEnv(powermanagementparams.EnvNoWorkloadDuration,
+					powermanagementparams.DefaultRanNoWorkloadDuration)
+				duration, err := time.ParseDuration(noWorkloadDuration)
+				Expect(err).ToNot(HaveOccurred())
+				compMap, err := powermanagementhelper.CollectPowerMetricsWithNoWorkload(
+					duration, samplingInterval, powerState, snoNode.Name)
+				Expect(err).ToNot(HaveOccurred())
+				// Persist power usage metric to ginkgo report for further processing in pipeline.
+				for metricName, metricValue := range compMap {
+					_, err := fmt.Fprintf(GinkgoWriter, "%s: %s\n", metricName, metricValue)
+					Expect(err).ToNot(HaveOccurred())
+				}
 			})
 
 		})
