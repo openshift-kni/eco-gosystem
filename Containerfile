@@ -8,12 +8,13 @@ LABEL go.version=${GO_VER}
 LABEL ginkgo.version=${GINKGO_VER}
 
 ENV PATH "$PATH:/usr/local/go/bin:/root/go/bin"
-RUN dnf install -y tar gcc make && \
+RUN dnf install -y tar gcc make python36 python3-jinja2 jq && \
     dnf clean metadata packages && \
     arch=$(arch | sed s/aarch64/arm64/ \ 
                 | sed s/x86_64/amd64/) && \
     curl -Ls https://go.dev/dl/${GO_VER}.linux-${arch}.tar.gz |tar -C /usr/local -xzf -  && \
-    go install github.com/onsi/ginkgo/v2/${GINKGO_VER}
+    go install github.com/onsi/ginkgo/v2/${GINKGO_VER} && \
+    curl -Ls https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz | tar -C /usr/local/bin -xzf -
 
 WORKDIR /workspace
 COPY . .
