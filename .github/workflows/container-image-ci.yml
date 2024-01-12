@@ -1,0 +1,40 @@
+name: Build Container Image - CI
+
+on:
+  release:
+    types:
+      - published
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and push container image
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build container image
+      id: build-image
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: eco-gosystem
+        tags: ${{ github.event_name == 'push' && 'latest' || github.ref_name }}
+        containerfiles: |
+          ./Containerfile
+        archs: amd64
+
+    - name: Push To quay.io
+      id: push-to-quay
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build-image.outputs.image }}
+        tags: ${{ steps.build-image.outputs.tags }}
+        registry: quay.io/ocp-edge-qe
+        username: ocp-edge-qe+ocp_edge_qe_robot
+        password: ${{ secrets.OCP_EDGE_QE_QUAY }}
+
+    - name: Print image url
+      run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
