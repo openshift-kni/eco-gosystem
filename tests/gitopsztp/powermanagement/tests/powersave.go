@@ -229,6 +229,21 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 				}
 			})
 
+			It("Check power usage for 'steadyworkload' scenario", func() {
+				workloadDuration := powermanagementhelper.GetEnv(powermanagementparams.EnvWorkloadDuration,
+					powermanagementparams.DefaultRanSteadyWorkloadDuration)
+				duration, err := time.ParseDuration(workloadDuration)
+				Expect(err).ToNot(HaveOccurred())
+				compMap, err := powermanagementhelper.CollectPowerMetricsWithSteadyWorkload(duration, samplingInterval,
+					powerState, perfProfile, snoNode)
+				Expect(err).ToNot(HaveOccurred())
+				// Persist power usage metric to ginkgo report for further processing in pipeline.
+				for metricName, metricValue := range compMap {
+					_, err := fmt.Fprintf(GinkgoWriter, "%s: %s\n", metricName, metricValue)
+					Expect(err).ToNot(HaveOccurred())
+				}
+			})
+
 		})
 	})
 
