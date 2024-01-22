@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +23,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cmd"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/config"
+
 	"github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/internal/ranfuncinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/powermanagement/internal/powermanagementparams"
@@ -28,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
 	"k8s.io/utils/ptr"
 
 	. "github.com/onsi/gomega"
@@ -487,4 +491,139 @@ func parseIpmiPowerOutput(result string) (map[string]float64, error) {
 	}
 
 	return powerMeasurements, nil
+}
+
+// CollectPowerMetricsWithSteadyWorkload collects power metrics with steady workload scenario.
+func CollectPowerMetricsWithSteadyWorkload(duration, samplingInterval time.Duration, tag string,
+	perfProfile *nto.Builder, snoNode *corev1.Node) (map[string]string, error) {
+	scenario := "steadyworkload"
+	// Create stress-ng workload pods.
+	// Determine cpu requests for stress-ng pods.
+	// stressNg cpu count is roughly 75% of total isolated cores.
+	// 1 cpu will be used by other consumer pods, such as process-exporter, cnfgotestpriv.
+	isolatedCPUSet, err := cpuset.Parse(string(*perfProfile.Object.Spec.CPU.Isolated))
+	if err != nil {
+		return nil, err
+	}
+
+	stressNgCPUCount := (isolatedCPUSet.Size() - 1) * 300 / 400
+	stressngMaxPodCount := 50
+	stressNgPods := DeployStressNgPods(stressNgCPUCount, stressngMaxPodCount, snoNode)
+
+	if len(stressNgPods) < 1 {
+		return nil, errors.New("not enough stress-ng pods to run test")
+	}
+
+	log.Printf("Wait for %s for %s scenario\n", duration.String(), scenario)
+	result, err := CollectPowerUsageMetrics(duration, samplingInterval, scenario, tag, snoNode.Name)
+	// Delete stress-ng pods.
+
+	for _, stressPod := range stressNgPods {
+		_, err = stressPod.DeleteAndWait(5 * time.Minute)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return result, err
+}
+
+// DeployStressNgPods deploys the stress-ng workload pods.
+func DeployStressNgPods(stressNgCPUCount, stressngMaxPodCount int, node *corev1.Node) []*pod.Builder {
+	// Determine cpu requests for stress-ng pods.
+	stressngPodsCPUs := parsePodCountAndCpus(stressngMaxPodCount, stressNgCPUCount)
+
+	var err error
+	// Create and wait for stress-ng pods to be Ready
+	log.Printf("Creating up to %d stress-ng pods with total %d cpus", stressngMaxPodCount, stressNgCPUCount)
+
+	stressngPods := []*pod.Builder{}
+
+	for _, cpuReq := range stressngPodsCPUs {
+		pod := DefineStressPod(node.Name, cpuReq, false)
+		_, err = pod.Create()
+		Expect(err).ToNot(HaveOccurred())
+
+		stressngPods = append(stressngPods, pod)
+	}
+
+	WaitForPodsHealthy(stressngPods, 20*time.Minute)
+	log.Printf("%d stress-ng pods with total %d cpus are created and running", len(stressngPods), stressNgCPUCount)
+
+	return stressngPods
+}
+
+// WaitForPodsHealthy waits for given pods to appear and healthy.
+func WaitForPodsHealthy(pods []*pod.Builder, timeout time.Duration) {
+	Eventually(func() error {
+		for _, singlePod := range pods {
+			tempPod, err := pod.Pull(ranfuncinittools.HubAPIClient, singlePod.Definition.Name,
+				singlePod.Object.Namespace)
+			if err != nil {
+				return err
+			}
+
+			err = tempPod.WaitUntilCondition(corev1.ContainersReady, 5*time.Minute)
+			if err != nil &&
+				!(tempPod.Object.Status.Phase == corev1.PodFailed &&
+					tempPod.Object.Spec.RestartPolicy == corev1.RestartPolicyNever) {
+				// Ignore failed pod with restart policy never. This could happen in image pruner or installer
+				// pods that will never restart after completed. And could stuck in error in various conditions
+				// after initial completion.
+				return err
+			}
+		}
+
+		return nil
+	}, timeout, 3*time.Second).ShouldNot(HaveOccurred())
+}
+
+// DefineStressPod returns stress-ng pod definition.
+func DefineStressPod(nodeName string, cpus int, guaranteed bool) *pod.Builder {
+	stressngImage := inittools.GeneralConfig.StressngTestImage
+	envVars := []corev1.EnvVar{{Name: "INITIAL_DELAY_SEC", Value: "60"}}
+	cpuLimit := strconv.Itoa(cpus)
+	memoryLimit := "100M"
+
+	if !guaranteed {
+		// Override CMDLINE for non-guaranteed pod to avoid specifying taskset
+		envVars = append(envVars, corev1.EnvVar{Name: "CMDLINE", Value: fmt.Sprintf("--cpu %d --cpu-load 50", cpus)})
+		cpuLimit = fmt.Sprintf("%dm", cpus*1200)
+		memoryLimit = "200M"
+	}
+
+	pod := pod.NewBuilder(ranfuncinittools.HubAPIClient, "", powermanagementparams.NamespaceTesting, stressngImage)
+	pod = pod.DefineOnNode(nodeName)
+	pod.RedefineDefaultCMD([]string{"stress-ng-"})
+	pod.RedefineDefaultContainer(corev1.Container{
+		Name:            "stress-ng",
+		Image:           "",
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Env:             envVars,
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse(cpuLimit),
+				corev1.ResourceMemory: resource.MustParse(memoryLimit),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse(strconv.Itoa(cpus)),
+				corev1.ResourceMemory: resource.MustParse("100m"),
+			},
+		},
+	})
+
+	return pod
+}
+
+func parsePodCountAndCpus(maxPodCount, cpuCount int) []int {
+	podCount := int(math.Min(float64(cpuCount), float64(maxPodCount)))
+	cpuPerPod := cpuCount / podCount
+	cpus := []int{}
+
+	for i := 1; i <= podCount-1; i++ {
+		cpus = append(cpus, cpuPerPod)
+	}
+	cpus = append(cpus, cpuCount-cpuPerPod*(podCount-1))
+
+	return cpus
 }
