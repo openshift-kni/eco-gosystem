@@ -109,7 +109,7 @@ issues:
       linters:
         - gochecknoinits
         
-    - path: 'tests/gitopsztp/internal/gitopsztpinittools'
+    - path: 'tests/ranfunc/internal/ranfuncinittools'
       linters:
         - gochecknoinits
 
