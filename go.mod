@@ -8,7 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20231216054307-28180628cf50
-	github.com/openshift-kni/eco-goinfra v0.0.0-20240109203119-975bf2617254
+	github.com/openshift-kni/eco-goinfra v0.0.0-20240119165249-4757abb333e9
 	github.com/openshift-kni/k8sreporter v1.0.5
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20231225123609-e63d2c9626fe
 	gonum.org/v1/gonum v0.14.0
@@ -108,6 +108,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20231116153922-80c6e01df02e // indirect
+	github.com/openshift-kni/lifecycle-agent v0.0.0-20240109211418-4489c4a1eb46 // indirect
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible // indirect
 	github.com/openshift/assisted-service/api v0.0.0 // indirect
 	github.com/openshift/assisted-service/models v0.0.0 // indirect
@@ -115,7 +116,7 @@ require (
 	github.com/openshift/cluster-nfd-operator v0.0.0-20231206145954-f49a827bf617 // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a // indirect
-	github.com/openshift/library-go v0.0.0-20231020125025-211b32f1a1f2 // indirect
+	github.com/openshift/library-go v0.0.0-20231027143522-b8cd45d2d2c8 // indirect
 	github.com/openshift/local-storage-operator v0.0.0-20231220121151-4e580bd14c46 // indirect
 	github.com/openshift/machine-config-operator v0.0.1-0.20230807154212-886c5c3fc7a9 // indirect
 	github.com/openshift/ptp-operator v0.0.0-20231220185604-29113b41981b // indirect
