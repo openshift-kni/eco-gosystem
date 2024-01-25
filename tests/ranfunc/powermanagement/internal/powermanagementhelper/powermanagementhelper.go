@@ -23,6 +23,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cmd"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/config"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 
 	"github.com/openshift-kni/eco-gosystem/tests/internal/inittools"
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/internal/ranfuncinittools"
@@ -185,8 +186,10 @@ func RedefineContainerResources(
 	return pod
 }
 
-// SetPowerMode updates the performance profile with the given workload hints, and waits for the mcp update.
-func SetPowerMode(perfProfile *nto.Builder, perPodPowerManagement, highPowerConsumption, realTime bool) error {
+// SetPowerModeAndWaitForMcpUpdate updates the performance profile with the given workload hints,
+// and waits for the mcp update.
+func SetPowerModeAndWaitForMcpUpdate(perfProfile *nto.Builder, node nodes.Builder, perPodPowerManagement,
+	highPowerConsumption, realTime bool) error {
 	glog.V(100).Infof("Set powersave mode on performance profile")
 
 	perfProfile.Definition.Spec.WorkloadHints = &performancev2.WorkloadHints{
@@ -203,7 +206,14 @@ func SetPowerMode(perfProfile *nto.Builder, perPodPowerManagement, highPowerCons
 	mcp, err := mco.Pull(ranfuncinittools.HubAPIClient, "master")
 	Expect(err).ToNot(HaveOccurred())
 
-	err = mcp.WaitForUpdate(powermanagementparams.Timeout)
+	err = mcp.WaitToBeInCondition(mcov1.MachineConfigPoolUpdating, corev1.ConditionTrue, 15*time.Minute)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = mcp.WaitToBeInCondition(mcov1.MachineConfigPoolUpdated, corev1.ConditionTrue, 25*time.Minute)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = node.WaitUntilReady(5 * time.Minute)
+	Expect(err).ToNot(HaveOccurred())
 
 	return err
 }
