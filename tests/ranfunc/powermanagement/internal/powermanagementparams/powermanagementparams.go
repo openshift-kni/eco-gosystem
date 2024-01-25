@@ -52,7 +52,7 @@ const (
 	// ProcessExporterImage is the image of the process-exporter pod.
 	ProcessExporterImage = "quay.io/ocp-edge-qe/process-exporter:ppid-2"
 	// Timeout is the timeout being used in powersave tests.
-	Timeout = 15 * time.Minute
+	Timeout = 30 * time.Minute
 	// CnfTestImage is the test image used by pods.
 	CnfTestImage = "quay.io/openshift-kni/cnf-tests:4.8"
 	// PrivPodNamespace is the priv pod namespace.

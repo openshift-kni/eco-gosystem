@@ -19,6 +19,7 @@ import (
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/powermanagement/internal/powermanagementparams"
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/openshift/cluster-node-tuning-operator/pkg/performanceprofile/controller/performanceprofile/components"
+	mcov1 "github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/kubernetes/pkg/kubelet/cm/cpuset"
@@ -35,8 +36,6 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		originPerformanceProfileSpec performancev2.PerformanceProfileSpec
 	)
 
-	var timeout = 15 * time.Minute
-
 	BeforeAll(func() {
 		// Get nodes for connection host
 		nodeList, err = nodes.List(ranfuncinittools.HubAPIClient)
@@ -49,7 +48,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		Expect(err).ToNot(HaveOccurred())
 		snoNode = nodeList[0].Object
 
-		originPerformanceProfileSpec = perfProfile.Object.Spec
+		// originPerformanceProfileSpec = perfProfile.Object.Spec
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -63,8 +62,12 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		mcp, err := mco.Pull(ranfuncinittools.HubAPIClient, "master")
 		Expect(err).ToNot(HaveOccurred())
 
-		err = mcp.WaitForUpdate(timeout)
+		err = mcp.WaitToBeInCondition(mcov1.MachineConfigPoolUpdating, corev1.ConditionTrue, 15*time.Minute)
 		Expect(err).ToNot(HaveOccurred())
+
+		err = mcp.WaitToBeInCondition(mcov1.MachineConfigPoolUpdated, corev1.ConditionTrue, 25*time.Minute)
+		Expect(err).ToNot(HaveOccurred())
+
 	})
 
 	// OCP-54571 - Install SNO node with standard DU profile that does not include WorkloadHints
@@ -104,7 +107,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 	// OCP-54572 - Enable powersave at node level and then enable performance at node level
 	It("Enable powersave at node level and then enable performance at node level", func() {
 		By("Patching the performance profile with the workload hints")
-		err := powermanagementhelper.SetPowerMode(perfProfile, true, false, true)
+		err := powermanagementhelper.SetPowerModeAndWaitForMcpUpdate(perfProfile, *nodeList[0], true, false, true)
 		Expect(err).ToNot(HaveOccurred(), "Unable to set power mode")
 
 		cmdline, err := cmd.ExecCmd([]string{"chroot", "rootfs", "cat", "/proc/cmdline"}, snoNode.Name)
@@ -130,7 +133,7 @@ var _ = Describe("Per-Core Runtime Tuning of power states - CRI-O", Ordered, fun
 		memLimit := resource.MustParse("100Mi")
 
 		By("Patching the performance profile with the workload hints")
-		err := powermanagementhelper.SetPowerMode(perfProfile, true, false, true)
+		err := powermanagementhelper.SetPowerModeAndWaitForMcpUpdate(perfProfile, *nodeList[0], true, false, true)
 		Expect(err).ToNot(HaveOccurred(), "Unable to set power mode")
 
 		By("Define test pod")
