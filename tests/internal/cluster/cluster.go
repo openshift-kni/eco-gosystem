@@ -88,3 +88,18 @@ func GetClusterVersion(apiClient *clients.Settings) (string, error) {
 
 	return clusterVersion.Object.Status.Desired.Version, nil
 }
+
+// GetClusterID can be used to get the Openshift version from the provided cluster.
+func GetClusterID(apiClient *clients.Settings) (string, error) {
+	// Check if the client was even defined first
+	if apiClient == nil {
+		return "", fmt.Errorf("provided client was not defined")
+	}
+
+	clusterVersion, err := clusterversion.Pull(apiClient)
+	if err != nil {
+		return "", err
+	}
+
+	return string(clusterVersion.Object.Spec.ClusterID), nil
+}
