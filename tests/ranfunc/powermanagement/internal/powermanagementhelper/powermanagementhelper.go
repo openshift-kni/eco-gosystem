@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"regexp"
@@ -342,7 +341,7 @@ func CollectPowerUsageMetrics(duration, samplingInterval time.Duration, scenario
 		return nil, err
 	}
 
-	log.Printf("Power usage test started: %v\nPower usage test ended: %v\n", startTime, time.Now())
+	glog.V(100).Infof("Power usage test started: %v\nPower usage test ended: %v\n", startTime, time.Now())
 
 	if len(powerMeasurements) < 1 {
 		return nil, errors.New("no power usage metrics were retrieved")
@@ -356,7 +355,7 @@ func CollectPowerUsageMetrics(duration, samplingInterval time.Duration, scenario
 func GetHostPowerUsage(nodeName string) (map[string]float64, error) {
 	user, password, hosts := ParseBmcInfo(inittools.GeneralConfig)
 	if len(hosts) > 1 {
-		log.Printf("multiple hosts detected, only using %s\n", hosts[0])
+		glog.V(100).Infof("multiple hosts detected, only using %s\n", hosts[0])
 	}
 
 	subcommands := []string{"dcmi", "power", "reading"}
@@ -524,7 +523,7 @@ func CollectPowerMetricsWithSteadyWorkload(duration, samplingInterval time.Durat
 		return nil, errors.New("not enough stress-ng pods to run test")
 	}
 
-	log.Printf("Wait for %s for %s scenario\n", duration.String(), scenario)
+	glog.V(100).Infof("Wait for %s for %s scenario\n", duration.String(), scenario)
 	result, err := CollectPowerUsageMetrics(duration, samplingInterval, scenario, tag, snoNode.Name)
 	// Delete stress-ng pods.
 
@@ -545,7 +544,7 @@ func DeployStressNgPods(stressNgCPUCount, stressngMaxPodCount int, node *corev1.
 
 	var err error
 	// Create and wait for stress-ng pods to be Ready
-	log.Printf("Creating up to %d stress-ng pods with total %d cpus", stressngMaxPodCount, stressNgCPUCount)
+	glog.V(100).Infof("Creating up to %d stress-ng pods with total %d cpus", stressngMaxPodCount, stressNgCPUCount)
 
 	stressngPods := []*pod.Builder{}
 
@@ -558,7 +557,7 @@ func DeployStressNgPods(stressNgCPUCount, stressngMaxPodCount int, node *corev1.
 	}
 
 	WaitForPodsHealthy(stressngPods, 20*time.Minute)
-	log.Printf("%d stress-ng pods with total %d cpus are created and running", len(stressngPods), stressNgCPUCount)
+	glog.V(100).Infof("%d stress-ng pods with total %d cpus are created and running", len(stressngPods), stressNgCPUCount)
 
 	return stressngPods
 }

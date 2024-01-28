@@ -628,9 +628,6 @@ func FilterMissingResourceErrors(err error) error {
 		return nil
 	}
 
-	// Reduce logging until we can have different log levels in future project
-	// log.Printf("Checking error '%s'", err.Error())
-
 	if strings.Contains(err.Error(), "server could not find the requested resource") {
 		return nil
 	}
