@@ -3,10 +3,10 @@ package cluster
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/clusterversion"
 
@@ -56,7 +56,7 @@ func GetClusterName(kubeconfigEnvVar string) (string, error) {
 
 		clusterName := splits[1]
 
-		log.Println("cluster name: ", clusterName)
+		glog.V(100).Infof("cluster name: ", clusterName)
 
 		return clusterName, nil
 	}
@@ -84,7 +84,7 @@ func GetClusterVersion(apiClient *clients.Settings) (string, error) {
 		}
 	}
 
-	log.Println("Warning: No completed version found in clusterversion. Returning desired version")
+	glog.V(100).Infof("Warning: No completed version found in clusterversion. Returning desired version")
 
 	return clusterVersion.Object.Status.Desired.Version, nil
 }
