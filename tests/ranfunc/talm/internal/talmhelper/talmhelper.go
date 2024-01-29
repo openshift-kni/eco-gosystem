@@ -22,11 +22,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	configurationPolicyv1 "open-cluster-management.io/config-policy-controller/api/v1"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/talm/internal/talmparams"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
 )
@@ -1016,4 +1018,44 @@ func GetPlacementFieldDefinition(
 	}
 
 	return customResource
+}
+
+// GetCatsrcDefinition is used to get a catalog source definition for use in a policy.
+func GetCatsrcDefinition(
+	name string,
+	namespace string,
+	sourceType operatorsv1alpha1.SourceType,
+	priority int,
+	configMap string,
+	address string,
+	image string,
+	displayName string) operatorsv1alpha1.CatalogSource {
+	return operatorsv1alpha1.CatalogSource{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CatalogSource",
+			APIVersion: operatorsv1alpha1.CatalogSourceCRDAPIVersion,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: operatorsv1alpha1.CatalogSourceSpec{
+			SourceType:  sourceType,
+			Priority:    priority,
+			ConfigMap:   configMap,
+			Address:     address,
+			Image:       image,
+			DisplayName: displayName,
+			Description: "a catalog source created by the talm tests",
+			Publisher:   "eco-gosystem/tests/ranfunc/talm",
+		},
+	}
+}
+
+// EnableCgu enables cgu.
+func EnableCgu(client *clients.Settings, cgu *cgu.CguBuilder) error {
+	cgu.Definition.Spec.Enable = ptr.To[bool](true)
+	_, err := cgu.Update(true)
+
+	return err
 }
