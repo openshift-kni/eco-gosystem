@@ -5,8 +5,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/eco-goinfra/pkg/lca"
 	"github.com/openshift-kni/eco-goinfra/pkg/polarion"
+	"github.com/openshift-kni/eco-gosystem/tests/imagebasedupgrade/internal/ibuclusterinfo"
 	"github.com/openshift-kni/eco-gosystem/tests/imagebasedupgrade/internal/imagebasedupgradeinittools"
 	"github.com/openshift-kni/eco-gosystem/tests/imagebasedupgrade/internal/imagebasedupgradeparams"
+	ibuvalidations "github.com/openshift-kni/eco-gosystem/tests/imagebasedupgrade/validations"
 )
 
 // IbuCr is a dedicated var to use and act on it.
@@ -21,6 +23,11 @@ var _ = Describe(
 		BeforeAll(func() {
 			By("Generating seed image", func() {
 				// Test Automation Code Implementation is to be done.
+			})
+
+			By("Saving pre upgrade cluster info", func() {
+				err := ibuclusterinfo.SaveClusterInfo(&imagebasedupgradeparams.PreUpgradeClusterInfo)
+				Expect(err).ToNot(HaveOccurred(), "Failed to save pre upgrade cluster info")
 			})
 		})
 
@@ -52,4 +59,10 @@ var _ = Describe(
 
 			})
 		})
+
+		err := ibuclusterinfo.SaveClusterInfo(&imagebasedupgradeparams.PostUpgradeClusterInfo)
+		Expect(err).ToNot(HaveOccurred(), "Failed to save post upgrade cluster info")
+
+		ibuvalidations.PostUpgradeValidations()
+
 	})
