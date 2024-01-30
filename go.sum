@@ -1167,10 +1167,12 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/image-spec v1.1.0-rc5 h1:Ygwkfw9bpDvs+c9E34SdgGOj41dX/cbdlwvlWt0pnFI=
 github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20231216054307-28180628cf50 h1:0Lw0f9ncgoXKo1JnQrEo4fGqYelTV+5huXzJvziDG9E=
 github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20231216054307-28180628cf50/go.mod h1:vfydLuqf4QsLXI5busOIjbuvvURuE0oeLCwjvXj34Mo=
-github.com/openshift-kni/eco-goinfra v0.0.0-20240109203119-975bf2617254 h1:RF35GGZ0Y7bQRClgtHq0a9/X03mIOvBB2hPJrWQjOMI=
-github.com/openshift-kni/eco-goinfra v0.0.0-20240109203119-975bf2617254/go.mod h1:glATkU/NliNAZZTGgFwY0rTJhrcHnXE+jjAjgQAKoNQ=
+github.com/openshift-kni/eco-goinfra v0.0.0-20240119165249-4757abb333e9 h1:0WaeqNRsT7zMpGDwAlThZ6K5it7ipXAphC+/WQ8w6UQ=
+github.com/openshift-kni/eco-goinfra v0.0.0-20240119165249-4757abb333e9/go.mod h1:/3PLkMxhTHtSp10aD0jD72tXgngD6x8WPWoZdlaEpmc=
 github.com/openshift-kni/k8sreporter v1.0.5 h1:1GYBc/BTZyVoXilHef43v9A8BSzw700zAPZ6zsZvo6Y=
 github.com/openshift-kni/k8sreporter v1.0.5/go.mod h1:fg8HI9yxiKAi6UzR6NTtrmQmA2WKzUqmkRUHwQ1+Bj8=
+github.com/openshift-kni/lifecycle-agent v0.0.0-20240109211418-4489c4a1eb46 h1:I6ZcMvy98fAzd/5IySrli8inlMuUFfS0+LE57ln8lqs=
+github.com/openshift-kni/lifecycle-agent v0.0.0-20240109211418-4489c4a1eb46/go.mod h1:+7AXvmYXtR4+UjvoMDeeRt4MrV32YK0uUHtHhEPn8MQ=
 github.com/openshift/api v0.0.0-20231115210901-4c4a0a24f2fc h1:VCR7TBU90EPmz1fjW1sqdVVpe5GmOHyJTTyQ5XmnmtE=
 github.com/openshift/api v0.0.0-20231115210901-4c4a0a24f2fc/go.mod h1:yimSGmjsI+XF1mr+AKBs2//fSXIOhhetHGbMlBEfXbs=
 github.com/openshift/assisted-service/api v0.0.0-20230907160625-4e1a1e59cef0 h1:JRsvPEsCDGSQxLGU0faqNjVXXyruURLb3mc4F8YstRw=
@@ -1187,8 +1189,8 @@ github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87
 github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87/go.mod h1:DB/Mf2oTeiAmVVX1gN+NEqweonAPY0TKUwADizj8+ZA=
 github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a h1:E+XPJs/aVvYsrlJzo2ED38ZTR2RTNUlFMmOaFAAdMZg=
 github.com/openshift/hive/apis v0.0.0-20220222213051-def9088fdb5a/go.mod h1:E1bgquRiwfugdArdecPbpYIrAdve5kTzMaJb0+8jMXI=
-github.com/openshift/library-go v0.0.0-20231020125025-211b32f1a1f2 h1:TWG/YVRhSvjYq8iIwJ2Wpoopgg0zuh+ZAl1RSm4J8Z0=
-github.com/openshift/library-go v0.0.0-20231020125025-211b32f1a1f2/go.mod h1:ZFwNwC3opc/7aOvzUbU95zp33Lbxet48h80ryH3p6DY=
+github.com/openshift/library-go v0.0.0-20231027143522-b8cd45d2d2c8 h1:5t2pHTyvfpy5xcKrLCj+6OITwIRdyH1CNG8Ob3vVJvc=
+github.com/openshift/library-go v0.0.0-20231027143522-b8cd45d2d2c8/go.mod h1:8UzmrBMCn7+GzouL8DVYkL9COBQTB1Ggd13/mHJQCUg=
 github.com/openshift/local-storage-operator v0.0.0-20231220121151-4e580bd14c46 h1:ltEp1+e1U18KCi8E+879li1FHCC+Wz/kNUPX3Y2o95o=
 github.com/openshift/local-storage-operator v0.0.0-20231220121151-4e580bd14c46/go.mod h1:14iQ/wwY3MTQRMHe04Lvx8Zhbh7ESJSRsN40coqDRw8=
 github.com/openshift/machine-config-operator v0.0.1-0.20230807154212-886c5c3fc7a9 h1:lEH5TQGyDjnJZocsI4FE0BcWKkKtqW3OOsBkRvGd9Rs=
