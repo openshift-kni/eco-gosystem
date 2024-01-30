@@ -2,6 +2,7 @@ package talm
 
 import (
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -94,6 +95,56 @@ var _ = Describe("Talm Batching Tests", Ordered, Label("talmbatching"), func() {
 					"",
 					"",
 					talmparams.TalmDefaultReconcileTime*3,
+				)
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+	})
+
+	Context("with a missing policy", Label("talmmissingpolicy"), func() {
+		// 49755
+		It("should report the missing policy", func() {
+			By("create and enable a cgu with a managed policy that does not exist", func() {
+
+				cgu := talmhelper.GetCguDefinition(
+					talmhelper.CguName,
+					[]string{talmhelper.Spoke1Name},
+					[]string{},
+					[]string{"non-existent-policy"},
+					talmhelper.Namespace, 1, 1)
+
+				err := talmhelper.CreateCguAndWait(
+					ranfuncinittools.HubAPIClient,
+					cgu,
+				)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			By("waiting for the cgu status to report the missing policy", func() {
+				// Validation here depends on the TALM version
+
+				conditionType := talmhelper.ValidatedType
+				conditionMessage := "Missing managed policies: [non-existent-policy]"
+
+				if !ranfunchelper.IsVersionStringInRange(
+					talmhelper.TalmHubVersion,
+					talmparams.TalmUpdatedConditionsVersion,
+					"",
+				) {
+					conditionType = talmhelper.ReadyType
+					conditionMessage = "The ClusterGroupUpgrade CR has: missing managed policies: [non-existent-policy]"
+				}
+
+				// This should immediately error out so we don't need a long timeout
+				err := talmhelper.WaitForCguInCondition(
+					ranfuncinittools.HubAPIClient,
+					talmhelper.CguName,
+					talmhelper.Namespace,
+					conditionType,
+					conditionMessage,
+					"",
+					"",
+					1*time.Minute,
 				)
 				Expect(err).ToNot(HaveOccurred())
 			})
