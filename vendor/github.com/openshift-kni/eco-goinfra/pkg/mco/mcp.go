@@ -218,7 +218,6 @@ func (builder *MCPBuilder) WaitForUpdate(timeout time.Duration) error {
 	}
 
 	for _, condition := range mcpUpdating.Status.Conditions {
-
 		if condition.Type == "Updating" && condition.Status == isTrue {
 			err := wait.PollUntilContextTimeout(
 				context.TODO(), fiveScds, timeout, true, func(ctx context.Context) (bool, error) {
@@ -231,7 +230,6 @@ func (builder *MCPBuilder) WaitForUpdate(timeout time.Duration) error {
 
 					for _, condition := range mcpUpdated.Status.Conditions {
 						if condition.Type == "Updated" && condition.Status == isTrue {
-
 							return true, nil
 						}
 					}
