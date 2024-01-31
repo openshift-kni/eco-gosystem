@@ -123,7 +123,7 @@ var _ = Describe("Talm Canary Tests", Ordered, Label("talmcanary"), func() {
 
 				err := talmhelper.CreatePolicyAndCgu(
 					ranfuncinittools.HubAPIClient,
-					&catsrc,
+					catsrc.Definition,
 					configurationPolicyv1.MustHave,
 					configurationPolicyv1.Inform,
 					talmhelper.PolicyName,

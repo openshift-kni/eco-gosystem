@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/glog"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 
 	argocdOperatorv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
@@ -44,6 +45,8 @@ import (
 	nmstatev1 "github.com/nmstate/kubernetes-nmstate/api/v1"
 	nmstateV1alpha1 "github.com/nmstate/kubernetes-nmstate/api/v1alpha1"
 
+	lcasgv1alpha1 "github.com/openshift-kni/lifecycle-agent/api/seedgenerator/v1alpha1"
+	lcav1alpha1 "github.com/openshift-kni/lifecycle-agent/api/v1alpha1"
 	operatorV1 "github.com/openshift/api/operator/v1"
 	hiveextV1Beta1 "github.com/openshift/assisted-service/api/hiveextension/v1beta1"
 	agentInstallV1Beta1 "github.com/openshift/assisted-service/api/v1beta1"
@@ -70,6 +73,7 @@ import (
 // Settings provides the struct to talk with relevant API.
 type Settings struct {
 	KubeconfigPath string
+	K8sClient      *kubernetes.Clientset
 	coreV1Client.CoreV1Interface
 	clientConfigV1.ConfigV1Interface
 	clientMachineConfigV1.MachineconfigurationV1Interface
@@ -136,6 +140,7 @@ func New(kubeconfig string) *Settings {
 	clientSet.MachineV1beta1Interface = machinev1beta1client.NewForConfigOrDie(config)
 	clientSet.K8sCniCncfIoV1beta1Interface = multinetpolicyclientv1.NewForConfigOrDie(config)
 	clientSet.StorageV1Interface = storageV1Client.NewForConfigOrDie(config)
+	clientSet.K8sClient = kubernetes.NewForConfigOrDie(config)
 	clientSet.Config = config
 
 	crScheme := runtime.NewScheme()
@@ -187,6 +192,14 @@ func SetScheme(crScheme *runtime.Scheme) error {
 	}
 
 	if err := performanceV2.AddToScheme(crScheme); err != nil {
+		return err
+	}
+
+	if err := lcav1alpha1.AddToScheme(crScheme); err != nil {
+		return err
+	}
+
+	if err := lcasgv1alpha1.AddToScheme(crScheme); err != nil {
 		return err
 	}
 

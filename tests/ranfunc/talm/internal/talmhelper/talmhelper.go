@@ -14,6 +14,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
 	"github.com/openshift-kni/eco-goinfra/pkg/ocm"
+	"github.com/openshift-kni/eco-goinfra/pkg/olm"
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
 
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/internal/ranfunchelper"
@@ -1029,25 +1030,27 @@ func GetCatsrcDefinition(
 	configMap string,
 	address string,
 	image string,
-	displayName string) operatorsv1alpha1.CatalogSource {
-	return operatorsv1alpha1.CatalogSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "CatalogSource",
-			APIVersion: operatorsv1alpha1.CatalogSourceCRDAPIVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: operatorsv1alpha1.CatalogSourceSpec{
-			SourceType:  sourceType,
-			Priority:    priority,
-			ConfigMap:   configMap,
-			Address:     address,
-			Image:       image,
-			DisplayName: displayName,
-			Description: "a catalog source created by the talm tests",
-			Publisher:   "eco-gosystem/tests/ranfunc/talm",
+	displayName string) olm.CatalogSourceBuilder {
+	return olm.CatalogSourceBuilder{
+		Definition: &operatorsv1alpha1.CatalogSource{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "CatalogSource",
+				APIVersion: operatorsv1alpha1.CatalogSourceCRDAPIVersion,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: operatorsv1alpha1.CatalogSourceSpec{
+				SourceType:  sourceType,
+				Priority:    priority,
+				ConfigMap:   configMap,
+				Address:     address,
+				Image:       image,
+				DisplayName: displayName,
+				Description: "a catalog source created by the talm tests",
+				Publisher:   "eco-gosystem/tests/ranfunc/talm",
+			},
 		},
 	}
 }
