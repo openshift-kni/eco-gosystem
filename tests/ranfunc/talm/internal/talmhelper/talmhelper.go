@@ -1062,3 +1062,33 @@ func EnableCgu(client *clients.Settings, cgu *cgu.CguBuilder) error {
 
 	return err
 }
+
+// WaitForCguToTimeout waits until the provided CGU reaches to a succeeded state or a timeout.
+func WaitForCguToTimeout(cguName string, namespace string, timeout time.Duration) error {
+	// Wait for the cgu to timeout
+	glog.V(100).Info("waiting for CGU to timeout")
+
+	// TALM uses different conditions starting in 4.12
+	conditionType := SucceededType
+	conditionReason := "TimedOut"
+
+	if !ranfunchelper.IsVersionStringInRange(
+		TalmHubVersion,
+		talmparams.TalmUpdatedConditionsVersion,
+		"",
+	) {
+		conditionType = ReadyType
+		conditionReason = "UpgradeTimedOut"
+	}
+
+	return WaitForCguInCondition(
+		ranfuncinittools.HubAPIClient,
+		cguName,
+		namespace,
+		conditionType,
+		"",
+		"",
+		conditionReason,
+		timeout,
+	)
+}
