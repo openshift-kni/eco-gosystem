@@ -60,6 +60,24 @@ var _ = Describe("Talm Batching Tests", Ordered, Label("talmbatching"), func() {
 		}
 	})
 
+	AfterEach(func() {
+		// Cleanup everything
+		errList := talmhelper.CleanupTestResourcesOnClients(
+			clusterList,
+			talmhelper.CguName,
+			talmhelper.PolicyName,
+			talmhelper.Namespace,
+			talmhelper.PlacementBindingName,
+			talmhelper.PlacementRule,
+			talmhelper.PolicySetName,
+			talmhelper.CatalogSourceName)
+		Expect(errList).To(BeEmpty())
+
+		// Cleanup the temporary namespace
+		err := talmhelper.CleanupNamespace(clusterList, talmhelper.TemporaryNamespaceName)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
 	Context("with a single spoke that is missing", Label("talmmissingspoke"), func() {
 		// 47949
 		It("should report the missing spoke", func() {
@@ -164,8 +182,8 @@ var _ = Describe("Talm Batching Tests", Ordered, Label("talmbatching"), func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 			By("verifying the temporary namespace exists on spoke1", func() {
-				result := namespaceBuilder.Exists()
-				Expect(result).To(BeTrue())
+				exists := namespaceBuilder.Exists()
+				Expect(exists).To(BeTrue())
 			})
 			By("verifying the temporary namespace does not exist on spoke2", func() {
 				nsExist := namespace.NewBuilder(talmhelper.Spoke2APIClient, talmhelper.TemporaryNamespaceName).Exists()
@@ -242,12 +260,125 @@ var _ = Describe("Talm Batching Tests", Ordered, Label("talmbatching"), func() {
 				By("validating that the policy was not successful on spoke1", func() {
 					catSrcExists := olm.NewCatalogSourceBuilder(ranfuncinittools.SpokeAPIClient,
 						talmhelper.CatalogSourceName, talmhelper.TemporaryNamespaceName).Exists()
-					err = talmhelper.FilterMissingResourceErrors(err)
-					Expect(err).ToNot(HaveOccurred())
 					Expect(catSrcExists).To(BeFalse())
 				})
 			})
+
+			// 54926
+			It("should continue the CGU when the second batch fails with the Continue batch timeout action", func() {
+
+				namespaceBuilder := namespace.NewBuilder(ranfuncinittools.SpokeAPIClient, talmhelper.TemporaryNamespaceName)
+				expectedTimeout := 16
+
+				By("creating the temporary namespace on spoke1 only", func() {
+					_, err := namespaceBuilder.Create()
+					Expect(err).ToNot(HaveOccurred())
+				})
+				By("verifying the temporary namespace exists on spoke1", func() {
+					exists := namespaceBuilder.Exists()
+					Expect(exists).To(BeTrue())
+				})
+				By("verifying the temporary namespace does not exist on spoke2", func() {
+					nsExist := namespace.NewBuilder(talmhelper.Spoke2APIClient, talmhelper.TemporaryNamespaceName).Exists()
+					Expect(nsExist).To(BeFalse())
+				})
+
+				By("creating the cgu and associated resources", func() {
+					// Max concurrency of one to ensure two batches are used
+					cgu := talmhelper.GetCguDefinition(
+						talmhelper.CguName,
+						[]string{
+							talmhelper.Spoke1Name,
+							talmhelper.Spoke2Name,
+						},
+						[]string{},
+						[]string{
+							talmhelper.PolicyName,
+						},
+						talmhelper.Namespace,
+						1,
+						expectedTimeout,
+					)
+
+					cgu.Definition.Spec.Enable = talmhelper.BoolAddr(false)
+
+					catsrc := talmhelper.GetCatsrcDefinition(
+						talmhelper.CatalogSourceName,
+						talmhelper.TemporaryNamespaceName,
+						operatorsv1alpha1.SourceTypeInternal,
+						1,
+						"",
+						"",
+						"",
+						talmhelper.CatalogSourceName,
+					)
+
+					err := talmhelper.CreatePolicyAndCgu(
+						ranfuncinittools.HubAPIClient,
+						catsrc.Definition,
+						configurationPolicyv1.MustHave,
+						configurationPolicyv1.Inform,
+						talmhelper.PolicyName,
+						talmhelper.PolicySetName,
+						talmhelper.PlacementBindingName,
+						talmhelper.PlacementRule,
+						talmhelper.Namespace,
+						metav1.LabelSelector{},
+						cgu,
+					)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("waiting for the system to settle", func() {
+					time.Sleep(talmparams.TalmSystemStablizationTime)
+				})
+
+				By("enabling the CGU", func() {
+					clusterGroupUpgrade, err := cgu.Pull(ranfuncinittools.HubAPIClient, talmhelper.CguName, talmhelper.Namespace)
+					Expect(err).ToNot(HaveOccurred())
+
+					err = talmhelper.EnableCgu(ranfuncinittools.HubAPIClient, clusterGroupUpgrade)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("waiting for the cgu to timeout", func() {
+					err := talmhelper.WaitForCguToTimeout(talmhelper.CguName, talmhelper.Namespace, 21*time.Minute)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("validating that the policy was successful on spoke1", func() {
+					catSrcExists := olm.NewCatalogSourceBuilder(ranfuncinittools.SpokeAPIClient,
+						talmhelper.CatalogSourceName, talmhelper.TemporaryNamespaceName).Exists()
+					Expect(catSrcExists).To(BeTrue())
+				})
+
+				By("validating that the policy failed on spoke2", func() {
+					catSrcExists := olm.NewCatalogSourceBuilder(talmhelper.Spoke2APIClient,
+						talmhelper.CatalogSourceName, talmhelper.TemporaryNamespaceName).Exists()
+					Expect(catSrcExists).To(BeFalse())
+				})
+
+				By("validating that cgu timeout is recalculated for later batches after earlier batches complete", func() {
+
+					// We need to get the cgu so we can get the timestamps from it
+					cgu, err := cgu.Pull(ranfuncinittools.HubAPIClient, talmhelper.CguName, talmhelper.Namespace)
+					Expect(err).ToNot(HaveOccurred())
+
+					// Get runtime in minutes from the cgu status
+					startTime := cgu.Object.Status.Status.StartedAt
+					endTime := cgu.Object.Status.Status.CompletedAt
+					runtime := endTime.Minute() - startTime.Minute()
+
+					// We expect that the total runtime should be about equal to the expected timeout
+					// In particular we expect it to be +/- one reconcile loop time (5 minutes)
+					// The first batch will complete successfully, so the second should use the entire remaining expected timout.
+					Expect(runtime >= expectedTimeout)
+					Expect(runtime <= expectedTimeout+int(talmparams.TalmDefaultReconcileTime))
+				})
+			})
+
 		})
 
 	})
+
 })
