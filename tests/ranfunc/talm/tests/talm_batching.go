@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/eco-goinfra/pkg/cgu"
@@ -379,6 +380,130 @@ var _ = Describe("Talm Batching Tests", Ordered, Label("talmbatching"), func() {
 
 		})
 
-	})
+		Context("using a temporary namespace", Label("talmtempnamespace"), func() {
 
+			// 47954, 54292
+			It("should report the timeout value when one cluster is in a batch and it times out", func() {
+				// We will be verifying that the actual timeout is close to this value
+				expectedTimeout := 8
+
+				By("verifying the temporary namespace does not exist", func() {
+					namespaceBuilder := namespace.NewBuilder(ranfuncinittools.SpokeAPIClient, talmhelper.TemporaryNamespaceName)
+					Expect(namespaceBuilder.Exists()).To(BeFalse())
+
+				})
+
+				By("creating the enabled cgu with a catalog source in a namespace that does not exist", func() {
+					catsrc := talmhelper.GetCatsrcDefinition(
+						talmhelper.CatalogSourceName,
+						talmhelper.TemporaryNamespaceName,
+						operatorsv1alpha1.SourceTypeInternal,
+						1,
+						"",
+						"",
+						"",
+						talmhelper.CatalogSourceName,
+					)
+
+					cgu := talmhelper.GetCguDefinition(
+						talmhelper.CguName,
+						[]string{
+							talmhelper.Spoke1Name,
+						},
+						[]string{},
+						[]string{
+							talmhelper.PolicyName,
+						},
+						talmhelper.Namespace,
+						1,
+						expectedTimeout,
+					)
+
+					cgu.Definition.Spec.Enable = talmhelper.BoolAddr(false)
+					err := talmhelper.CreatePolicyAndCgu(
+						ranfuncinittools.HubAPIClient,
+						catsrc.Definition,
+						configurationPolicyv1.MustHave,
+						configurationPolicyv1.Inform,
+						talmhelper.PolicyName,
+						talmhelper.PolicySetName,
+						talmhelper.PlacementBindingName,
+						talmhelper.PlacementRule,
+						talmhelper.Namespace,
+						metav1.LabelSelector{},
+						cgu,
+					)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("waiting for the system to settle", func() {
+					time.Sleep(talmparams.TalmSystemStablizationTime)
+				})
+
+				By("enabling the CGU", func() {
+					clusterGroupUpgrade, err := cgu.Pull(ranfuncinittools.HubAPIClient, talmhelper.CguName, talmhelper.Namespace)
+					Expect(err).ToNot(HaveOccurred())
+
+					err = talmhelper.EnableCgu(ranfuncinittools.HubAPIClient, clusterGroupUpgrade)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("waiting for the cgu to timeout", func() {
+					err := talmhelper.WaitForCguToTimeout(talmhelper.CguName, talmhelper.Namespace, 21*time.Minute)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("validating the timeout value was approximately correct", func() {
+					// We need to get the cgu so we can get the timestamps from it
+					cgu, err := cgu.Pull(ranfuncinittools.HubAPIClient, talmhelper.CguName, talmhelper.Namespace)
+					Expect(err).ToNot(HaveOccurred())
+
+					// Get the start and end time from the cgu status
+					startTime := cgu.Object.Status.Status.StartedAt
+					endTime := cgu.Object.Status.Status.CompletedAt
+
+					// Get the runtime in minutes
+					// We only really care about the minutes here since the test is relatively short
+					runtime := endTime.Minute() - startTime.Minute()
+
+					// We expect that the total runtime should be about equal to the expected timeout
+					// In particular we expect it to be +/- one reconcile loop time (5 minutes)
+					Expect(runtime+int(talmparams.TalmDefaultReconcileTime) >= expectedTimeout)
+					Expect(runtime-int(talmparams.TalmDefaultReconcileTime) <= expectedTimeout)
+				})
+
+				// Deletion of TALM-generated policy requires 4.12 or higher
+				if ranfunchelper.IsVersionStringInRange(
+					talmhelper.TalmHubVersion,
+					talmparams.TalmUpdatedConditionsVersion,
+					"",
+				) {
+
+					By("verifying the test policy was deleted upon CGU expiration", func() {
+						TalmPolicyPrefix := talmhelper.CguName + "-" + talmhelper.PolicyName
+						talmGeneratedPolicyName, err := talmhelper.GetPolicyNameWithPrefix(
+							ranfuncinittools.HubAPIClient,
+							TalmPolicyPrefix,
+							talmhelper.Namespace)
+						Expect(err).ToNot(HaveOccurred())
+
+						glog.V(100).Infof("Checking for existence of test policy %s", talmGeneratedPolicyName)
+
+						if talmGeneratedPolicyName != "" {
+							glog.V(100).Infof("Test policy %s still exists. Waiting for deletion.", talmGeneratedPolicyName)
+							err = talmhelper.WaitUntilObjectDoesNotExist(
+								ranfuncinittools.HubAPIClient,
+								talmGeneratedPolicyName,
+								talmhelper.Namespace,
+								talmhelper.IsPolicyExist,
+							)
+							Expect(err).ToNot(HaveOccurred())
+						}
+					})
+				}
+
+			})
+
+		})
+	})
 })

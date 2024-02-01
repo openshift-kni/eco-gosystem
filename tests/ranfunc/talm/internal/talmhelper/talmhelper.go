@@ -32,6 +32,7 @@ import (
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -1091,4 +1092,61 @@ func WaitForCguToTimeout(cguName string, namespace string, timeout time.Duration
 		conditionReason,
 		timeout,
 	)
+}
+
+// GetPolicyNameWithPrefix finds a policy starting with policyPrefix and returns
+// the name of first policy that matches or returns a blank string if not found.
+func GetPolicyNameWithPrefix(
+	client *clients.Settings,
+	policyPrefix string,
+	namespace string) (string, error) {
+	generatedPolicyName := ""
+
+	// Get a list of policies from the cluster
+	policyList, err := ocm.ListPoliciesInAllNamespaces(client, runtimeclient.ListOptions{Namespace: namespace})
+
+	// Filter errors that don't matter
+	err = FilterMissingResourceErrors(err)
+	if err != nil {
+		return generatedPolicyName, err
+	}
+
+	// Check the returned policy list for the specific policy
+	for _, policy := range policyList {
+		if strings.HasPrefix(policy.Object.Name, policyPrefix) {
+			generatedPolicyName = policy.Object.Name
+
+			return generatedPolicyName, nil
+		}
+	}
+
+	return generatedPolicyName, nil
+}
+
+// WaitUntilObjectDoesNotExist can be called to wait until a specified resource is deleted.
+// This is called by all of the DeleteXAndWait functions in this file.
+func WaitUntilObjectDoesNotExist(
+	client *clients.Settings,
+	objectName string,
+	namespace string,
+	getStatus func(client *clients.Settings, objectName string, namespace string) (bool, error)) error {
+	// Wait for it to exist
+	err := wait.PollUntilContextTimeout(context.TODO(), 15*time.Second, 5*time.Minute, true,
+		func(context.Context) (bool, error) {
+			status, err := getStatus(client, objectName, namespace)
+
+			// May or may not exist
+			err = FilterMissingResourceErrors(err)
+			if err == nil && !status {
+				// Did exist, but is gone now
+				return true, nil
+			}
+
+			// Assume it still exists
+			return false, nil
+
+		},
+	)
+
+	return err
 }
