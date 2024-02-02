@@ -8,7 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20231216054307-28180628cf50
-	github.com/openshift-kni/eco-goinfra v0.0.0-20240130190254-d596dffca78d
+	github.com/openshift-kni/eco-goinfra v0.0.0-20240202154232-b24741524946
 	github.com/openshift-kni/k8sreporter v1.0.5
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20231225123609-e63d2c9626fe
 	github.com/openshift/machine-config-operator v0.0.1-0.20230807154212-886c5c3fc7a9
