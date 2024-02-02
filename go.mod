@@ -1,6 +1,6 @@
 module github.com/openshift-kni/eco-gosystem
 
-go 1.20
+go 1.21.6
 
 require (
 	github.com/golang/glog v1.1.2

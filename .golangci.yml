@@ -25,7 +25,7 @@ linters-settings:
     statements: 40
   unused:
     check-exported: true
-    go: "1.20"
+    go: "1.21"
   stylecheck:
     dot-import-whitelist:
       - github.com/onsi/gomega
