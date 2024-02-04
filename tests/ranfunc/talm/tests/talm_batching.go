@@ -504,6 +504,100 @@ var _ = Describe("Talm Batching Tests", Ordered, Label("talmbatching"), func() {
 
 			})
 
+			// 47947, 54288, 54289, 54559, 54292
+			It("should complete the CGU when two clusters are successful in a single batch", func() {
+				By("creating the cgu and associated resources", func() {
+					cgu := talmhelper.GetCguDefinition(
+						talmhelper.CguName,
+						[]string{talmhelper.Spoke2Name, talmhelper.Spoke2Name},
+						[]string{},
+						[]string{talmhelper.PolicyName},
+						talmhelper.Namespace, 1, 15)
+
+					cgu.Definition.Spec.Enable = talmhelper.BoolAddr(false)
+
+					policyLabelSelector := metav1.LabelSelector{}
+
+					if ranfunchelper.IsVersionStringInRange(talmhelper.TalmHubVersion, talmparams.TalmUpdatedConditionsVersion, "") {
+						glog.V(100).Infof("Test using MatchLabels with name %s and MatchExpressions with name %s...",
+							talmhelper.Spoke1Name, talmhelper.Spoke2Name)
+						policyLabelSelector = metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{{
+								Key:      "common",
+								Operator: "In",
+								Values:   []string{"true"},
+							}},
+						}
+						cgu.Definition.Spec.Clusters = nil
+						cgu.Definition.Spec.ClusterLabelSelectors = []metav1.LabelSelector{
+							{MatchLabels: map[string]string{"name": talmhelper.Spoke1Name}},
+							{MatchExpressions: []metav1.LabelSelectorRequirement{{
+								Key:      "name",
+								Operator: "In",
+								Values:   []string{talmhelper.Spoke2Name},
+							}}},
+						}
+					}
+
+					namespace := namespace.NewBuilder(ranfuncinittools.HubAPIClient, talmhelper.TemporaryNamespaceName)
+					err := talmhelper.CreatePolicyAndCgu(
+						ranfuncinittools.HubAPIClient,
+						namespace.Definition,
+						configurationPolicyv1.MustHave,
+						configurationPolicyv1.Inform,
+						talmhelper.PolicyName,
+						talmhelper.PolicySetName,
+						talmhelper.PlacementBindingName,
+						talmhelper.PlacementRule,
+						talmhelper.Namespace,
+						policyLabelSelector,
+						cgu,
+					)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("waiting for the system to settle", func() {
+					time.Sleep(talmparams.TalmSystemStablizationTime)
+				})
+
+				By("enabling the CGU", func() {
+					clusterGroupUpgrade, err := cgu.Pull(ranfuncinittools.HubAPIClient, talmhelper.CguName, talmhelper.Namespace)
+					Expect(err).ToNot(HaveOccurred())
+
+					err = talmhelper.EnableCgu(ranfuncinittools.HubAPIClient, clusterGroupUpgrade)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("waiting for the cgu to finish successfully", func() {
+					err := talmhelper.WaitForCguToFinishSuccessfully(talmhelper.CguName, talmhelper.Namespace, 21*time.Minute)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				By("verifying the test policy was deleted upon CGU expiration", func() {
+
+					TalmPolicyPrefix := talmhelper.CguName + "-" + talmhelper.PolicyName
+
+					talmGeneratedPolicyName, err := talmhelper.GetPolicyNameWithPrefix(
+						ranfuncinittools.HubAPIClient,
+						TalmPolicyPrefix,
+						talmhelper.Namespace)
+					Expect(err).ToNot(HaveOccurred())
+					glog.V(100).Infof("Checking for existence of test policy %s", talmGeneratedPolicyName)
+
+					if talmGeneratedPolicyName != "" {
+						glog.V(100).Infof("Test policy %s still exists. Waiting for deletion.", talmGeneratedPolicyName)
+						err = talmhelper.WaitUntilObjectDoesNotExist(
+							ranfuncinittools.HubAPIClient,
+							talmGeneratedPolicyName,
+							talmhelper.Namespace,
+							talmhelper.IsPolicyExist,
+						)
+						Expect(err).ToNot(HaveOccurred())
+					}
+				})
+
+			})
+
 		})
 	})
 })
