@@ -1,4 +1,4 @@
-package talm
+package tests
 
 import (
 	"fmt"
