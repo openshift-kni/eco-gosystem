@@ -32,6 +32,7 @@ linters-settings:
       - github.com/onsi/ginkgo/v2
       - github.com/openshift-kni/eco-gosystem/tests/internal/inittools
       - github.com/openshift-kni/eco-gosystem/tests/ran-du/internal/randuinittools
+      - github.com/openshift-kni/eco-gosystem/tests/reboot/internal/rebootinittools
       - github.com/openshift-kni/eco-gosystem/tests/imagebasedupgrade/internal/imagebasedupgradeinittools
     # Select the Go version to target. The default is '1.13'.
     go: "1.19"
@@ -119,6 +120,10 @@ issues:
         - gochecknoinits
 
     - path: 'tests/imagebasedupgrade/internal/imagebasedupgradeinittools'
+      linters:
+        - gochecknoinits
+
+    - path: 'tests/reboot/internal/rebootinittools'
       linters:
         - gochecknoinits
 
