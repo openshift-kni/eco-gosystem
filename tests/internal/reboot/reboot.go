@@ -1,8 +1,12 @@
 package reboot
 
 import (
+	"context"
+	"fmt"
+	"sync"
 	"time"
 
+	"github.com/bmc-toolbox/bmclib/v2"
 	"github.com/golang/glog"
 	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
 	"github.com/openshift-kni/eco-goinfra/pkg/pod"
@@ -14,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // SoftRebootNode executes systemctl reboot on a node.
@@ -24,6 +29,129 @@ func SoftRebootNode(nodeName string) error {
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// powerCycleNode is used to inovke 'power cycle' command over BMC session.
+func powerCycleNode(
+	waitingGroup *sync.WaitGroup,
+	nodeName string,
+	client *bmclib.Client,
+	lock *sync.Mutex,
+	resMap map[string][]string) {
+	glog.V(90).Infof(
+		fmt.Sprintf("Starting go routine for %s", nodeName))
+
+	defer waitingGroup.Done()
+
+	glog.V(90).Infof(
+		fmt.Sprintf("[%s] Setting timeout for context", nodeName))
+
+	bmcCtx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+	defer cancel()
+
+	glog.V(90).Infof(
+		fmt.Sprintf("[%s] Starting BMC session", nodeName))
+
+	err := client.Open(bmcCtx)
+
+	if err != nil {
+		glog.V(90).Infof("Failed to open BMC session to %s", nodeName)
+		lock.Lock()
+		if value, ok := resMap["error"]; !ok {
+			resMap["error"] = []string{fmt.Sprintf("Failed to open BMC session to %s", nodeName)}
+		} else {
+			value = append(value, fmt.Sprintf("Failed to open BMC session to %s", nodeName))
+			resMap["error"] = value
+		}
+		lock.Unlock()
+
+		return
+	}
+
+	defer client.Close(bmcCtx)
+
+	glog.V(90).Infof(fmt.Sprintf("Checking power state on %s", nodeName))
+
+	err = wait.PollUntilContextTimeout(context.TODO(), 5*time.Second, 5*time.Minute, true,
+		func(ctx context.Context) (bool, error) {
+			if _, err := client.SetPowerState(bmcCtx, "cycle"); err != nil {
+				glog.V(90).Infof(
+					fmt.Sprintf("Failed to power cycle %s -> %v", nodeName, err))
+
+				return false, err
+			}
+
+			glog.V(90).Infof(
+				fmt.Sprintf("Successfully powered cycle %s", nodeName))
+
+			return true, nil
+		})
+
+	if err != nil {
+		glog.V(90).Infof("Failed to reboot node %s due to %v", nodeName, err)
+		lock.Lock()
+		if value, ok := resMap["error"]; !ok {
+			resMap["error"] = []string{fmt.Sprintf("Failed to reboot node %s due to %v", nodeName, err)}
+		} else {
+			value = append(value, fmt.Sprintf("Failed to reboot node %s due to %v", nodeName, err))
+			resMap["error"] = value
+		}
+		lock.Unlock()
+
+		return
+	}
+}
+
+// HardRebootNodeBMC reboots node(s) via BMC
+// returns false if there were issues power cycling node(s).
+func HardRebootNodeBMC(nodesBMCMap systemtestsparams.NodesBMCMap) error {
+	clientOpts := []bmclib.Option{}
+
+	glog.V(90).Infof(fmt.Sprintf("BMC options %v", clientOpts))
+
+	glog.V(90).Infof(
+		fmt.Sprintf("NodesCredentialsMap:\n\t%#v", nodesBMCMap))
+
+	var bmcMap = make(map[string]*bmclib.Client)
+
+	for node, auth := range nodesBMCMap {
+		glog.V(90).Infof(
+			fmt.Sprintf("Creating BMC client for node %s", node))
+		glog.V(90).Infof(
+			fmt.Sprintf("BMC Auth %#v", auth))
+
+		bmcClient := bmclib.NewClient(auth.BMCAddress, auth.Username, auth.Password, clientOpts...)
+		bmcMap[node] = bmcClient
+	}
+
+	var (
+		waitGroup sync.WaitGroup
+		mapMutex  sync.Mutex
+		resultMap = make(map[string][]string)
+	)
+
+	for node, client := range bmcMap {
+		waitGroup.Add(1)
+
+		go powerCycleNode(&waitGroup, node, client, &mapMutex, resultMap)
+	}
+
+	glog.V(90).Infof("Wait for all reboots to finish")
+	waitGroup.Wait()
+
+	glog.V(90).Infof("Finished waiting for go routines to finish")
+
+	if len(resultMap) != 0 {
+		glog.V(90).Infof("There were errors power cycling nodes")
+
+		for _, msg := range resultMap["error"] {
+			glog.V(90).Infof("\tError: %v", msg)
+		}
+
+		return fmt.Errorf("there were errors power cycling nodes")
 	}
 
 	return nil
