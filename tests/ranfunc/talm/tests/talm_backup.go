@@ -12,6 +12,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
 	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
+	"github.com/openshift-kni/eco-gosystem/tests/internal/cluster"
 	"github.com/openshift-kni/eco-gosystem/tests/internal/cmd"
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/internal/ranfunchelper"
 	"github.com/openshift-kni/eco-gosystem/tests/ranfunc/internal/ranfuncinittools"
@@ -99,9 +100,180 @@ var _ = Describe("Talm Backup Tests with single spoke", func() {
 
 			By("waiting for cgu to fail for spoke1")
 			assertBackupStatus(cgu.Definition.Name, talmhelper.Spoke1Name, "UnrecoverableError")
+		})
+	})
+
+	Context("with CGU disabled", func() {
+		curName := "backupsequence"
+		cguName := fmt.Sprintf("%s-%s", talmparams.CguCommonName, curName)
+		policyName := fmt.Sprintf("%s-%s", talmhelper.PolicyName, curName)
+		cguEnabled := false
+
+		AfterEach(func() {
+			// Delete generated CRs on Hub Cluster.
+			hubErrList := talmhelper.CleanupTestResourcesOnClient(
+				ranfuncinittools.HubAPIClient,
+				cguName,
+				policyName,
+				talmparams.TalmTestNamespace,
+				fmt.Sprintf("%s-%s", talmparams.PlacementBindingCommonName, curName),
+				fmt.Sprintf("%s-%s", talmparams.PlacementRuleCommonName, curName),
+				fmt.Sprintf("%s-%s", talmhelper.PolicySetName, curName),
+				"",
+				false,
+			)
+			Expect(hubErrList).To(BeEmpty())
+
+			// Delete temporary namespace on spoke cluster.
+			spokeClusterList := []*clients.Settings{ranfuncinittools.SpokeAPIClient}
+			err := talmhelper.CleanupNamespace(spokeClusterList, talmhelper.TemporaryNamespaceName)
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
+		// ocp-54294, ocp-54295
+		It("verifies backup begins and succeeds after CGU is enabled", func() {
+			if !ranfunchelper.IsVersionStringInRange(talmhelper.TalmHubVersion, "4.12", "") {
+				Skip("backup begins after CGU enable requires talm 4.12 or higher")
+			}
+
+			By("creating a disabled cgu with backup enabled")
+			cgu := talmhelper.GetCguDefinition(
+				cguName,
+				[]string{talmhelper.Spoke1Name},
+				[]string{},
+				[]string{policyName},
+				talmparams.TalmTestNamespace, 1, 30)
+
+			cgu.Definition.Spec.Backup = true
+			// passing reference to cguEnabled because cgu.Spec.Enable is of type BoolAddr
+			cgu.Definition.Spec.Enable = &cguEnabled
+
+			// apply cgu
+			err := talmhelper.CreatePolicyAndCgu(
+				ranfuncinittools.HubAPIClient,
+				namespace.NewBuilder(ranfuncinittools.HubAPIClient, talmhelper.TemporaryNamespaceName).Definition,
+				configurationPolicyv1.MustHave,
+				configurationPolicyv1.Inform,
+				policyName,
+				fmt.Sprintf("%s-%s", talmparams.PolicySetNameCommonName, curName),
+				fmt.Sprintf("%s-%s", talmparams.PlacementBindingCommonName, curName),
+				fmt.Sprintf("%s-%s", talmparams.PlacementRuleCommonName, curName),
+				talmparams.TalmTestNamespace,
+				metav1.LabelSelector{},
+				cgu,
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("checking backup does not begin when CGU is disabled")
+			err = talmhelper.WaitForBackupStart(
+				ranfuncinittools.HubAPIClient,
+				cgu.Definition.Name,
+				cgu.Definition.Namespace,
+				2*time.Minute,
+			)
+			Expect(err).To(HaveOccurred())
+
+			By("enalble CGU")
+			err = talmhelper.EnableCgu(ranfuncinittools.HubAPIClient, &cgu)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("waiting for backup to begin")
+			err = talmhelper.WaitForBackupStart(
+				ranfuncinittools.HubAPIClient,
+				cgu.Definition.Name,
+				cgu.Definition.Namespace,
+				1*time.Minute,
+			)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Wait for spoke cluster backup to finish and report Succeeded.
+			By("waiting for cgu to indicate backup succeeded for spoke")
+			assertBackupStatus(cgu.Definition.Name, talmhelper.Spoke1Name, "Succeeded")
+
+		})
+
+	})
+
+})
+
+var _ = Describe("Talm Backup Tests with two spokes", Ordered, func() {
+
+	curName := "disk-full-multiple-spokes"
+	cguName := fmt.Sprintf("%s-%s", talmparams.CguCommonName, curName)
+	policyName := fmt.Sprintf("%s-%s", talmparams.PolicyNameCommonName, curName)
+
+	BeforeAll(func() {
+		if !ranfunchelper.IsVersionStringInRange(
+			talmhelper.TalmHubVersion,
+			"4.11",
+			"",
+		) {
+			Skip("backup tests require talm 4.11 or higher")
+		}
+		// tests below requires all clusters to be present. hub + spoke1 + spoke2
+		clusterList := talmhelper.GetAllTestClients()
+		// Check that the required clusters are present
+		err := cluster.CheckClustersPresent(clusterList)
+		if err != nil {
+			Skip(fmt.Sprintf("error occurred validating required clusters are present: %s", err.Error()))
+		}
+	})
+
+	BeforeEach(func() {
+		By("setting up filesystem to simulate low space")
+		nodeList, err := nodes.List(ranfuncinittools.HubAPIClient)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(nodeList)).To(BeNumerically(">=", 1))
+
+		nodeName := nodeList[0].Object.Name
+		loopBackDevicePath = prepareEnvWithSmallMountPoint(nodeName)
+	})
+
+	AfterEach(func() {
+		glog.V(100).Info("starting disk-full env clean up")
+		diskFullEnvCleanup(nodeName, curName, loopBackDevicePath)
+		// Delete temporary namespace on spoke cluster.
+		spokeClusterList := []*clients.Settings{ranfuncinittools.SpokeAPIClient, talmhelper.Spoke2APIClient}
+		for _, spokeCluster := range spokeClusterList {
+			err := namespace.NewBuilder(spokeCluster, talmhelper.TemporaryNamespaceName).CleanObjects(5 * time.Minute)
+			Expect(err).ToNot(HaveOccurred())
+
+		}
+	})
+
+	It("should not affect backup on second spoke in same batch", func() {
+		By("applying all the required CRs for backup")
+		// prep cgu
+		cgu := talmhelper.GetCguDefinition(
+			cguName,
+			[]string{talmhelper.Spoke1Name, talmhelper.Spoke2Name},
+			[]string{},
+			[]string{policyName},
+			talmparams.TalmTestNamespace, 100, 240)
+		cgu.Definition.Spec.Backup = true
+
+		// apply
+		err := talmhelper.CreatePolicyAndCgu(
+			ranfuncinittools.HubAPIClient,
+			namespace.NewBuilder(ranfuncinittools.HubAPIClient, talmhelper.TemporaryNamespaceName).Definition,
+			configurationPolicyv1.MustHave,
+			configurationPolicyv1.Inform,
+			policyName,
+			fmt.Sprintf("%s-%s", talmparams.PolicySetNameCommonName, curName),
+			fmt.Sprintf("%s-%s", talmparams.PlacementBindingCommonName, curName),
+			fmt.Sprintf("%s-%s", talmparams.PlacementRuleCommonName, curName),
+			talmparams.TalmTestNamespace,
+			metav1.LabelSelector{},
+			cgu,
+		)
+		Expect(err).To(BeNil())
+
+		By("waiting for cgu to indicate it failed for spoke1")
+		assertBackupStatus(cgu.Definition.Name, talmhelper.Spoke1Name, "UnrecoverableError")
+
+		By("waiting for cgu to indicate it succeeded for spoke2")
+		assertBackupStatus(cgu.Definition.Name, talmhelper.Spoke2Name, "Succeeded")
 	})
 
 })
