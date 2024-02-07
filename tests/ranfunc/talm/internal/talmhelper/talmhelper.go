@@ -1150,3 +1150,22 @@ func WaitUntilObjectDoesNotExist(
 
 	return err
 }
+
+// WaitForBackupStart Waits for CGU to report backup started.
+func WaitForBackupStart(client *clients.Settings, cguName string, namespace string, timeout time.Duration) error {
+	// Print the current check
+	glog.V(100).Info("Waiting for backup to begin")
+
+	// get cgu status
+	err := wait.PollUntilContextTimeout(context.TODO(), 10*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			cgu, err := cgu.Pull(client, cguName, namespace)
+			if err != nil {
+				return false, err
+			}
+
+			return cgu.Object.Status.Backup != nil, nil
+		})
+
+	return err
+}
