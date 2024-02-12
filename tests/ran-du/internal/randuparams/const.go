@@ -13,4 +13,6 @@ const (
 	DefaultTimeout = 300 * time.Second
 	// TestWorkloadShellLaunchMethod is used when usin a shell script for launching the test workload.
 	TestWorkloadShellLaunchMethod = "shell"
+	// DU Hosts kubeconfig env var.
+	KubeEnvKey string = "KUBECONFIG"
 )
