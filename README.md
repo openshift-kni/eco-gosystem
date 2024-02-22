@@ -7,7 +7,7 @@ The [eco-gosystem](https://github.com/openshift-kni/eco-gosystem) project provid
 The project is based on golang+[ginkgo](https://onsi.github.io/ginkgo) framework and it makes use of packages from [eco-goinfra](https://github.com/openshift-kni/eco-goinfra)
 
 ### Project requirements
-* golang v1.20.x
+* golang v1.21.x
 * ginkgo v2.x
 
 ## eco-gosystem
